@@ -219,28 +219,7 @@ declare(strict_types=1)
 
 			#region Capisce se la pagina è home o altro e se la risposta è sì, esce
 
-            global $wp_query;
-			if (!is_embed())
-			{
-				if ((is_home() || is_front_page() || is_archive() || is_search() || is_singular()) === false
-                    || (is_home() && !empty($_GET)))
-				{
-					//downloadmanager plugin downloadlink request [home]/?wpdmact=XXXXXX  exclude home GET query
-					return false;
-
-				} else if (is_singular() && empty($wp_query->post))
-				{
-					//documentroot special php file (wp-login.php, wp-cron.php, etc)  These are considered singular at this point, but are determined by the absence of post
-					// Use URL filter if you want to filter
-					// However, when bbPress private (private) page, post is not set yet at this point, but post_type is already set, so skip
-					if (empty($wp_query->query_vars['post_type']))
-					{
-						return false;
-					}
-				}
-			}
-
-			$mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
+            $mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
 
 			#endregion
 
