@@ -31,7 +31,7 @@ class HelperClass
      * @param string $value A value for $field. A user ID, slug, email address, or login name.
      * @return WP_User|bool WP_User object on success, false on failure.
      */
-    public static function get_user_by(string $field, string $value): WP_User|bool
+    public static function get_user_by(string $field, string $value): mixed //WP_User|bool
     {
         $userdata = WP_User::get_data_by($field, $value);
 
