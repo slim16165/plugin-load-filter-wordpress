@@ -34,17 +34,64 @@ declare(strict_types=1)
 	$active_plugins = get_option('active_plugins', array());
 	$plugin_load_filter = new PluginLoadFilter();
 
+class FilterType
+{
+    public const Admin = '_admin';
+    public const Pagefilter = '_pagefilter';
+    public const Groups = 'group';
+    public const Urlkey = 'urlkey';
+    public const Urlkeylist = 'urlkeylist';
+    private array $filter = array();  //Plugin Load Filter Setting option data
+
+
+    public function getFilterUrlKeyList(): mixed
+    {
+        return $this->filter[self::Urlkeylist];
+    }
+
+    public function GetFilterUrlKey(): mixed
+    {
+        return $this->filter[self::Urlkey];
+    }
+
+    public function GetPageFilterPlugins(): mixed
+    {
+        return $this->filter[self::Pagefilter]['plugins'];
+    }
+
+    public function GetFilterPlfurlkeyPlugins($urlkey): mixed
+    {
+        return $this->filter['plfurlkey'][$urlkey]['plugins'];
+    }
+    public function getFilterAdminPlugins(): mixed
+    {
+        return $this->filter[self::Admin]['plugins'];
+    }
+
+    public function GetUrlsKeyList(array $keys_UrlOrTipology): array
+    {
+        $filter_urls = explode(PHP_EOL, $this->filter->getFilterUrlKeyList());
+        $filter_urls2 = array_map("trim", $filter_urls);
+
+        $ar_key = (!empty($filter_urls)) ? array_filter($filter_urls2) : array();
+
+        foreach ($ar_key as $key_UrlOrTipology) {
+            $keys_UrlOrTipology[$key_UrlOrTipology] = $key_UrlOrTipology;
+        }
+        return $keys_UrlOrTipology;
+    }
+}
 
 	class PluginLoadFilter
 	{
 
-		//	$filter['_admin']
-		//	$filter['_pagefilter']
-		//	$filter['group']
-		//	$filter['plfurlkey']
-		//	$filter['urlkey']
-		//	$filter['urlkeylist']
-		private array $filter = array();  //Plugin Load Filter Setting option data
+		//	filter['_admin']
+		//	filter['_pagefilter']
+		//	filter['group']
+		//	filter['plfurlkey']
+		//	filter['urlkey']
+		//	filter['urlkeylist']
+		private FilterType $filter2;
 		private $cache;
 
 		public function __construct()
@@ -54,63 +101,67 @@ declare(strict_types=1)
 			add_filter('pre_option_active_plugins', array(&$this, 'active_plugins'));
 		}
 
-		//active plugins Filter
-		private function CondizioniDiEsclusione($key_UrlOrTipology): bool
-		{
-			$skip_actions = false;
+        /**
+         * @param string $stringa
+         * @return string[]
+         */
+        private static function StringSplit(string $stringa): array
+        {
+            return explode(',', $stringa);
+        }
 
+        /**
+         * @param $specificPagePostMeta_option
+         * @param string $mobileOrDesktop
+         * @param mixed $pluginAttivoCorrente
+         * @param bool $disabilitaPerQuestoDevice
+         * @return array
+         */
+        private static function extracted($specificPagePostMeta_option, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $disabilitaPerQuestoDevice): array
+        {
+            $defaultBehaviour = array('filter' => 'default',
+                'desktop' => '',
+                'mobile' => '');
+
+            $pageBehaviourMobileOrDesktop = (!empty($specificPagePostMeta_option)) ? $specificPagePostMeta_option : $defaultBehaviour;
+            $pageBehaviourMobileOrDesktop = wp_parse_args($pageBehaviourMobileOrDesktop, $defaultBehaviour);
+            if ($pageBehaviourMobileOrDesktop['filter'] === 'include') {
+                $pageBehaviour = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
+                //strpos ( string $haystack , mixed $needle [, int $offset = 0 ] ) : int
+                if (false !== strpos($pageBehaviour, $pluginAttivoCorrente)) {
+                    $disabilitaPerQuestoDevice = false;
+                }
+            }
+            return array($pageBehaviourMobileOrDesktop, $disabilitaPerQuestoDevice);
+        }
+
+
+        private function ShouldSkipAnyAction($currentUrl): bool
+		{
+            //Se è heartbeat o admin-ajax skippa
+			$skip_actions = false;
             $action = $_REQUEST['action'];
 
-            if ($key_UrlOrTipology === 'heartbeat')
+            if ($currentUrl === 'heartbeat')
 			{
 				if (empty($action) || $action !== 'heartbeat')
 				{
-					//continue = exclude any action
-					$skip_actions = true; //continue;
+					$skip_actions = true;
 				}
-			} else if ($key_UrlOrTipology === 'admin-ajax')
+			}
+            else if ($currentUrl === 'admin-ajax')
 			{
 				//exclude action : plugin_load_filter
 				if (!(empty($action) || $action != 'revious-microdata'))
 				{
-					//continue = exclude any action
-					$skip_actions = true; //continue;
+					$skip_actions = true;
 				}
 			}
-//						else if ($key_UrlOrTipology === 'amp')
-//						{
-//							if (!defined('PLF_IS_AMP'))
-//								define('PLF_IS_AMP', true);
-//						}
 
 			return $skip_actions;
 		}
 
-		private static function IsMobile()
-		{
-            $userAgent = $_SERVER['HTTP_USER_AGENT'];
-
-            if (empty($userAgent))
-			{
-				$is_mobile = false;
-			} elseif (strpos($userAgent, 'Mobile') !== false // many mobile devices (all iPhone, iPad, etc.)
-				|| strpos($userAgent, 'Android') !== false
-				|| strpos($userAgent, 'Silk/') !== false
-				|| strpos($userAgent, 'Kindle') !== false
-				|| strpos($userAgent, 'BlackBerry') !== false
-				|| strpos($userAgent, 'Opera Mini') !== false
-				|| strpos($userAgent, 'Opera Mobi') !== false)
-			{
-				$is_mobile = true;
-			} else
-			{
-				$is_mobile = false;
-			}
-			$is_mobile = apply_filters('custom_is_mobile', $is_mobile);
-			return $is_mobile;
-		}
-
-		public function active_plugins()
+        public function active_plugins()
 		{
             //Se si sta installando wordpress non fare nulla
             if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING')) {
@@ -120,66 +171,40 @@ declare(strict_types=1)
 			return $this->FilterActivePlugins();
 		}
 
-		//Make taxonomies and posts available to 'plugin load filter'.
-		//force register_taxonomy (category, post_tag, post_format)
-		public function force_initial_taxonomies(): void
-        {
-			global $wp_actions;
-			$wp_actions['init'] = 1;
-			create_initial_taxonomies();
-			create_initial_post_types();
-			unset($wp_actions['init']);
-		}
 
-		//Plugin Load Filter Main (active plugins/modules filtering)
+
+        //Plugin Load Filter Main (active plugins/modules filtering)
 		//Only the plugins which are returned by this method will be loaded
 		public function FilterActivePlugins()
 		{
-			$filter = $this->filter;
-
 			$shouldReturn = false;
+            $REQUEST_URI = $_SERVER['REQUEST_URI'];
 
-			$pluginAttivi_string = $this->CaricaPluginAttivi($shouldReturn);
-//			if($shouldReturn)
-//				return $pluginAttivi_string;
 
+            //Metodo principale
+			$pluginAttivi_string = $this->GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
             $pluginAttivi = maybe_unserialize($pluginAttivi_string);
 
-			#region Cerca se ci sono impostazioni per URL
+			#region Cerca se ci sono impostazioni per URL - URL filter (max priority)
 
-            //URL filter (max priority) IMPORTANTE
+            //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
+            $cacheKey = md5("plf_url{$REQUEST_URI}");
+            $active_plugins = $this->cache[$cacheKey]['active_plugins'];
+            if (!empty($active_plugins))
+            {
+                return $active_plugins;
+            }
 
-			$urlkey = null; //in realtà poi diventa una stringa
-            $REQUEST_URI = $_SERVER['REQUEST_URI'];
-            if (!empty($REQUEST_URI))
-			{
-				#region Cache
+            //Uso come key_UrlOrTipology per l'accesso alla cache l'url
+            //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
+            //Se trova un match e lo restituisce in output
+            $urlkey = $this->CercaUnMatchConUrlPagina();
 
-				//Uso come key_UrlOrTipology per l'accesso alla cache l'url
-				$keyid = md5("plf_url{$REQUEST_URI}");
+            if ($urlkey !== false && is_string($urlkey))
+            {
+                return $this->extracted1($pluginAttivi, $urlkey, $cacheKey);
+            }
 
-				//Se trova in cache quell'url e quella opzione lo restituisce
-				if (!empty($this->cache[$keyid]['active_plugins']))
-				{
-					return $this->cache[$keyid]['active_plugins'];
-				}
-
-				#endregion
-
-				#region Plugin to disable by Url and type
-
-				//$kwd è l'url?
-				//$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
-				//Se trova un matche lo restituisce in output
-				$urlkey = $this->CercaUnMatchConUrlPagina();
-
-				if ($urlkey !== false && is_string($urlkey))
-				{
-                    return $this->extracted1($pluginAttivi, $filter, $urlkey, $keyid);
-                }
-			}
-
-			#endregion
 
 			#endregion
 
@@ -189,17 +214,6 @@ declare(strict_types=1)
 			if (!$urlkey && is_admin()) {
                 return false;
             }
-
-			//Equal treatment for when the wp_is_mobile is not yet available（wp-include/vars.php wp_is_mobile)
-			$is_mobile = self::IsMobile();
-
-			//get_option is called many times, intermediate processing plf_queryvars to cache
-			//La cache è separata da mobile e desktop
-			$keyid = md5('plf_' . (string)$is_mobile . $REQUEST_URI);
-			if (!empty($this->cache[$keyid]['active_plugins']))
-			{
-				return $this->cache[$keyid]['active_plugins'];
-			}
 
 			#endregion
 
@@ -217,15 +231,6 @@ declare(strict_types=1)
 
 			#endregion
 
-			#region Capisce se la pagina è home o altro e se la risposta è sì, esce
-
-            $mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
-
-			#endregion
-
-            if(is_admin()) {
-                return;
-            }
 
             $shorcodes = $this->GetShortcodesFromContent();
 
@@ -234,7 +239,6 @@ declare(strict_types=1)
             if(is_single())
             {
                 $pluginDaRimuovereDiDefault = $this->getPluginDaRimuovereDiDefault();
-
                 $pluginAttivi = $this->RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
             }
 
@@ -242,56 +246,40 @@ declare(strict_types=1)
 
 			$pluginAttiviFinale = array();
 
-			foreach ($pluginAttivi as $pluginAttivoCorrente)
+
+            //Equal treatment for when the wp_is_mobile is not yet available（wp-include/vars.php wp_is_mobile)
+            $is_mobile = HelperClass::IsMobile();
+            foreach ($pluginAttivi as $pluginAttivoCorrente)
 			{
-				$result = $this->CheckIfPluginIsToLoad($pluginAttivoCorrente, $mobileOrDesktop);
+				$result = $this->CheckIfPluginIsToLoad($pluginAttivoCorrente, $is_mobile);
 
 				if (!is_null($result)) {
                     $pluginAttiviFinale[] = $result;
                 }
 			}
-			$this->cache[$keyid]['active_plugins'] = $pluginAttiviFinale;
 
 			#endregion
 
 			return $pluginAttiviFinale;
 		}
 
+        //TODO: non ci si capisce un cazzo
 		private function CercaUnMatchConUrlPagina(): int|string|null
         {
-			$keys_UrlOrTipology = array();
-			//Dai la priorità all'URL generico
-			//foreach (array( 'amp', 'url_1', 'url_2', 'url_3' ) as $key_UrlOrTipology) {
-			foreach (array('amp') as $key_UrlOrTipology)
-			{
-				if (!empty($filter['urlkey'][$key_UrlOrTipology]))
-				{
-					$keys_UrlOrTipology[$key_UrlOrTipology] = $filter['urlkey'][$key_UrlOrTipology];
-				}
-			}
-
-			$ar_key = (!empty($filter['urlkeylist'])) ? array_filter(array_map("trim", explode(PHP_EOL, $filter['urlkeylist']))) : array();
-			foreach ($ar_key as $key_UrlOrTipology)
-			{
-				$keys_UrlOrTipology[$key_UrlOrTipology] = $key_UrlOrTipology;
-			}
-
-			$keys_UrlOrTipology['wp-json'] = 'wp-json';
-			$keys_UrlOrTipology['heartbeat'] = 'admin-ajax';
-			$keys_UrlOrTipology['admin-ajax'] = 'admin-ajax';
+            $keys_UrlOrTipology = $this->getKeys_UrlOrTipology();
 
             $urlkey = null;
 
 			foreach ($keys_UrlOrTipology as $key_UrlOrTipology => $kwd)
 			{
-//				$urlkey ="";
-
-				if (preg_match("#([/&.?=]){$kwd}([/&.?=]|$)#u", $_SERVER['REQUEST_URI']))
+				if ($this->CercaUrl($kwd))
 				{
-					if ($this->CondizioniDiEsclusione($key_UrlOrTipology)) {
+					if ($this->ShouldSkipAnyAction($key_UrlOrTipology))
+                    {
                         continue;
                     }
-					else {
+					else
+                    {
                         $urlkey = $key_UrlOrTipology;
                     }
 
@@ -317,27 +305,26 @@ declare(strict_types=1)
 			return true;
 		}
 
-		private function getArray_map($stringa): array
+		private function getArray_mapSplitAndTrim(string $stringa) : array
 		{
-			return array_map("trim", explode(',', $stringa));
+            $stringSplit = self::StringSplit($stringa);
+            return array_map("trim", $stringSplit);
 		}
 
 
-		private function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $mobileOrDesktop)
+		private function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
 		{
 			global $wp_query;
-			$filter = $this->filter;
-
+            $mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
 			$unload = false;
 
-//			$pluginAttivoCorrente = $pluginAttivoCorrente2;
-
 			//admin mode filter
-			if (!empty($filter['_admin']['plugins']))
+            $plugins1 = $this->filter2->GetAdminPlugins();
+            if (!empty($plugins1))
 			{
-				//in_array — Checks if a value exists in an array
-				//in_array ( mixed $needle , array $haystack [, bool $strict = FALSE ] ) : bool
-				if (in_array($pluginAttivoCorrente, $this->getArray_map($filter['_admin']['plugins']))) {
+				$plugins = $this->getArray_mapSplitAndTrim($plugins1);
+
+                if (in_array($pluginAttivoCorrente, $plugins, true)) {
                     $unload = true;
                 }
 			}
@@ -345,9 +332,13 @@ declare(strict_types=1)
 			//page filter
 			if (!$unload)
 			{
-				if (!empty($filter['_pagefilter']['plugins']))
+                $plugins = $this->filter2->GetPageFilterPlugins();
+
+                if (!empty($plugins))
 				{
-					if (in_array($pluginAttivoCorrente, $this->getArray_map($filter['_pagefilter']['plugins'])))
+                    $plugins2 = $this->getArray_mapSplitAndTrim($plugins);
+
+                    if (in_array($pluginAttivoCorrente, $plugins2, true))
 					{
 						$unload = true;
 
@@ -359,74 +350,11 @@ declare(strict_types=1)
 						{
 							$specificPagePostMeta_option = get_post_meta($wp_query->post->ID, '_plugin_load_filter', true);
 
-							$defaultBehaviour = array('filter' => 'default',
-								'desktop' => '',
-								'mobile' => '');
-							$pageBehaviourMobileOrDesktop = (!empty($specificPagePostMeta_option)) ? $specificPagePostMeta_option : $defaultBehaviour;
-							$pageBehaviourMobileOrDesktop = wp_parse_args($pageBehaviourMobileOrDesktop, $defaultBehaviour);
-							if ($pageBehaviourMobileOrDesktop['filter'] === 'include')
-							{
-								$pageBehaviour = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
-								//strpos ( string $haystack , mixed $needle [, int $offset = 0 ] ) : int
-								if (false !== strpos($pageBehaviour, $pluginAttivoCorrente)) {
-                                    $disabilitaPerQuestoDevice = false;
-                                }
-							}
-						}
+                            [$pageBehaviourMobileOrDesktop, $disabilitaPerQuestoDevice] = self::extracted($specificPagePostMeta_option, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+                        }
 
-						$filtriPerGruppi = $filter['group'];
-						if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default')
-						{
-							if (!empty($filtriPerGruppi[$mobileOrDesktop]['plugins'])
-                                && false !== strpos($filtriPerGruppi[$mobileOrDesktop]['plugins'], $pluginAttivoCorrente)) {
-                        $disabilitaPerQuestoDevice = false;
-                            }
-						}
-						if ($disabilitaPerQuestoDevice)
-						{
-						}
-                        else
-						{
-							//oEmbed Content API
-							if (is_embed())
-							{
-								$post_format = 'content-card';
-								if (!empty($filtriPerGruppi[$post_format]['plugins']))
-								{
-									if (false !== strpos($filtriPerGruppi[$post_format]['plugins'], $pluginAttivoCorrente)) {
-                                        $unload = false;
-                                    }
-								}
-							} else
-							{
-								$pageFormatOptions = false;
-
-								if (is_singular())
-								{
-									if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include')
-									{
-										$pageFormatOptions = true;
-										$MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
-										if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente))
-										{
-											$unload = false;
-										}
-									}
-								}
-								if ($pageFormatOptions === false)
-								{
-									$post_format = WpPostTypes::CalculatePostFormat($wp_query);
-
-									if (!empty($post_format) && is_string($post_format) && !empty($filtriPerGruppi[$post_format]['plugins']))
-									{
-										if (in_array($pluginAttivoCorrente, array_map("trim", explode(',', $filtriPerGruppi[$post_format]['plugins'])))) {
-                                            $unload = false;
-                                        }
-									}
-								}
-							}
-						}
-					}
+                        $unload = $this->FiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice, $unload, $wp_query);
+                    }
 				}
 			}
 			if (!$unload) //Sopra c'è lo stesso if...
@@ -435,20 +363,22 @@ declare(strict_types=1)
 			}
 		}
 
-		private function CaricaPluginAttivi(bool &$shouldReturn)
+		private function GetActivePluginList(bool &$shouldReturn)
 		{
 			global $wpdb;
 			$shouldReturn = true;
 
 			// prevent non-existent options from triggering multiple queries
 			$notoptions = wp_cache_get('notoptions', 'options');
-			if (isset($notoptions['active_plugins']))
+
+            if (isset($notoptions['active_plugins']))
 			{
 				$shouldReturn = true;
 				return apply_filters('default_option_' . 'active_plugins', false);
 			}
 
 			$alloptions = wp_load_alloptions();
+
 			if (isset($alloptions['active_plugins']))
 			{
 				$active_plugins = $alloptions['active_plugins'];
@@ -474,7 +404,6 @@ declare(strict_types=1)
 						}
 						$notoptions['active_plugins'] = true;
 						wp_cache_set('notoptions', $notoptions, 'options');
-
 					}
 				}
 			}
@@ -503,20 +432,21 @@ declare(strict_types=1)
 
         /**
          * @param $pluginAttivi
-         * @param array $filter
          * @param string $urlkey
          * @param string $keyid
          * @return array
          */
-        private function extracted1($pluginAttivi, array $filter, string $urlkey, string $keyid): array
+        private function extracted1($pluginAttivi, string $urlkey, string $keyid): array
         {
             $pluginAttiviFinale = array();
             foreach ($pluginAttivi as $pluginAttivoCorrente) {
                 $unload = false;
                 $pluginDaRimuovere = $pluginAttivoCorrente;
 
-                if (!empty($filter['plfurlkey'][$urlkey]['plugins'])) {
-                    if (false !== strpos($filter['plfurlkey'][$urlkey]['plugins'], $pluginDaRimuovere)) {
+                $plugins = $this->filter2->GetFilterPlfurlkeyPlugins($urlkey);
+
+                if (!empty($plugins)) {
+                    if (false !== strpos($plugins, $pluginDaRimuovere)) {
                         $unload = true;
                     }
                 }
@@ -535,7 +465,7 @@ declare(strict_types=1)
             $GLOBALS['wp_rewrite'] = new WP_Rewrite();
             $GLOBALS['wp'] = new WP();
             //register_taxonomy(category, post_tag, post_format) support for is_archive
-            $this->force_initial_taxonomies();
+            WpPostTypes::force_initial_taxonomies();
             //Post Format, Custom Post Type support
 //				add_action('parse_request', array(&$this, 'parse_request'));
             $GLOBALS['wp']->parse_request('');
@@ -566,10 +496,106 @@ declare(strict_types=1)
         private function RimuoviPlugin(array $pluginDaRimuovereDiDefault, $pluginAttivi): mixed
         {
             foreach ($pluginDaRimuovereDiDefault as $pluginCorrente) {
-                $i = array_search($pluginCorrente, $pluginAttivi);
+                $i = array_search($pluginCorrente, $pluginAttivi, true);
                 unset($pluginAttivi[$i]);
             }
             return $pluginAttivi;
         }
+
+        private function extract2($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $unload, $wp_query, mixed $filtriPerGruppi): bool
+        {
+            $pageFormatOptions = false;
+
+            if (is_singular()) {
+                if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include') {
+                    $pageFormatOptions = true;
+                    $MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
+                    if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente)) {
+                        $unload = false;
+                    }
+                }
+            }
+            if ($pageFormatOptions === false) {
+                $post_format = WpPostTypes::CalculatePostFormat($wp_query);
+
+                if (!empty($post_format) && is_string($post_format) && !empty($filtriPerGruppi[$post_format]['plugins'])) {
+                    if (in_array($pluginAttivoCorrente, array_map("trim", explode(',', $filtriPerGruppi[$post_format]['plugins'])), true)) {
+                        $unload = false;
+                    }
+                }
+            }
+            return $unload;
+        }
+
+        /**
+         * @param $group
+         * @param $pageBehaviourMobileOrDesktop
+         * @param string $mobileOrDesktop
+         * @param mixed $pluginAttivoCorrente
+         * @param bool $disabilitaPerQuestoDevice
+         * @param bool $unload
+         * @param $wp_query
+         * @return bool
+         */
+        private function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $disabilitaPerQuestoDevice, bool $unload, $wp_query): bool
+        {
+            $filtriPerGruppi = $this->filter2->GetFilterGroups()['group'];
+            if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default') {
+                $var = $filtriPerGruppi[$mobileOrDesktop];
+                if (!empty($var['plugins'])
+                    && false !== strpos($var['plugins'], $pluginAttivoCorrente)) {
+                    $disabilitaPerQuestoDevice = false;
+                }
+            }
+            if ($disabilitaPerQuestoDevice) {
+            } else {
+                //oEmbed Content API
+                if (is_embed()) {
+                    $var1 = $filtriPerGruppi['content-card'];
+                    if (!empty($var1['plugins'])) {
+                        if (false !== strpos($var1['plugins'], $pluginAttivoCorrente)) {
+                            $unload = false;
+                        }
+                    }
+                } else {
+                    $unload = $this->extract2($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $unload, $wp_query, $filtriPerGruppi);
+                }
+            }
+            return $unload;
+        }
+
+        /**
+         * @return array
+         */
+        private function getKeys_UrlOrTipology(): array
+        {
+            $keys_UrlOrTipology = array();
+            //Dai la priorità all'URL generico
+
+            foreach (['amp'] as $key) {
+                $var = $this->filter2->GetFilterUrlKey()[$key];
+
+                if (!empty($var)) {
+                    $keys_UrlOrTipology[$key] = $var;
+                }
+            }
+
+            $keys_UrlOrTipology = $this->filter2->GetUrlsKeyList($keys_UrlOrTipology);
+
+            $keys_UrlOrTipology['wp-json'] = 'wp-json';
+            $keys_UrlOrTipology['heartbeat'] = 'admin-ajax';
+            $keys_UrlOrTipology['admin-ajax'] = 'admin-ajax';
+            return $keys_UrlOrTipology;
+        }
+
+        /**
+         * @param mixed $kwd
+         * @return false|int
+         */
+        private function CercaUrl(mixed $kwd): int|false
+        {
+            return preg_match("#([/&.?=])$kwd([/&.?=]|$)#u", $_SERVER['REQUEST_URI']);
+        }
+
 
     }

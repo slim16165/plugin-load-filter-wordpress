@@ -6,8 +6,8 @@ class WpPostTypes
 
 
     /**
-     * @param $wp_query
-     * @return mixed
+    * Make taxonomies and posts available to 'plugin load filter'.
+    * force register_taxonomy (category, post_tag, post_format)
      */
     public static function getSinglePost_format($wp_query): mixed
     {
@@ -44,5 +44,14 @@ class WpPostTypes
             $post_format = WpPostTypes::getSinglePost_format($wp_query);
         }
         return $post_format;
+    }
+
+    public static function force_initial_taxonomies(): void
+    {
+        global $wp_actions;
+        $wp_actions['init'] = 1;
+        create_initial_taxonomies();
+        create_initial_post_types();
+        unset($wp_actions['init']);
     }
 }

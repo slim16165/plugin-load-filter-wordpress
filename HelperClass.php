@@ -60,4 +60,25 @@ class HelperClass
 
         return true;
     }
+
+    public static function IsMobile()
+    {
+        $userAgent = $_SERVER['HTTP_USER_AGENT'];
+
+        if (empty($userAgent)) {
+            $is_mobile = false;
+        } elseif (strpos($userAgent, 'Mobile') !== false // many mobile devices (all iPhone, iPad, etc.)
+            || strpos($userAgent, 'Android') !== false
+            || strpos($userAgent, 'Silk/') !== false
+            || strpos($userAgent, 'Kindle') !== false
+            || strpos($userAgent, 'BlackBerry') !== false
+            || strpos($userAgent, 'Opera Mini') !== false
+            || strpos($userAgent, 'Opera Mobi') !== false) {
+            $is_mobile = true;
+        } else {
+            $is_mobile = false;
+        }
+        $is_mobile = apply_filters('custom_is_mobile', $is_mobile);
+        return $is_mobile;
+    }
 }
