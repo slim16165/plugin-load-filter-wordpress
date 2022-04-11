@@ -2,12 +2,23 @@
 
 class FilterType
 {
+    //	filter['_admin']
+    //	filter['_pagefilter']
+    //	filter['group']
+    //	filter['plfurlkey']
+    //	filter['urlkey']
+    //	filter['urlkeylist']
     public const Admin = '_admin';
     public const Pagefilter = '_pagefilter';
     public const Groups = 'group';
     public const Urlkey = 'urlkey';
     public const Urlkeylist = 'urlkeylist';
-    private array $filter = array();  //Plugin Load Filter Setting option data
+    private static array $filter = array();  //Plugin Load Filter Setting option data
+
+    public function __construct()
+    {
+        self::$filter = get_option('plf_option');
+    }
 
     public function getFilterUrlKeyList(): mixed
     {
@@ -94,5 +105,116 @@ class FilterType
         $plugins1['admin-ajax'] = 'admin-ajax';
 
         return $plugins1;
+    }
+
+    public function GesticiRewriteRule(): bool
+    {
+        // If rewrite_rule is cleared when the plugin is disabled etc., custom post typeOfPage cannot be determined until rewrite_rule is updated
+        // At this time, the custom post typeOfPage page will be skipped to the home, so it will not be possible to get out of the state where rewrite_rule cannot be updated after all
+        // Monitor rewrite_rule to respond, skip plugin filtering if changed
+        $rewrite_rules = get_option('rewrite_rules');
+        $plf_queryvars = get_option('plf_queryvars');
+        if (empty($rewrite_rules) || empty($plf_queryvars['rewrite_rules']) || $rewrite_rules !== $plf_queryvars['rewrite_rules']) {
+            $plf_queryvars['rewrite_rules'] = (empty($rewrite_rules)) ? '' : $rewrite_rules;
+            update_option('plf_queryvars', $plf_queryvars);
+            return false;
+        }
+        return true;
+    }
+
+    public function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
+    {
+        $unload = false;
+
+        //admin mode filter
+        $plugins = $this->filter2->GetAdminPlugins();
+        if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
+            $unload = true;
+        }
+
+        //page filter
+        if (!$unload) {
+            $plugins = $this->filter2->GetPagePlugins();
+
+            if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
+                $unload = true;
+                $unload = $this->extracted2($is_mobile, $pluginAttivoCorrente, $unload);
+            }
+        }
+        if (!$unload) //Sopra c'è lo stesso if...
+        {
+            return $pluginAttivoCorrente;
+        }
+    }
+
+    private function extracted2(string $is_mobile, $pluginAttivoCorrente, &$unload): array
+    {
+        //desktop/mobile device disable filter
+        $disabilitaPerQuestoDevice = true;
+
+        global $wp_query;
+        $mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
+        if (is_singular() && is_object($wp_query->post))
+        {
+            $pageBehaviourMobileOrDesktop = PluginLoadFilter_extra::extracted($mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+        }
+
+        $unload = $this->FiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+        return $unload;
+    }
+
+    private function extract2($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $unload, $wp_query, mixed $filtriPerGruppi): bool
+    {
+        $pageFormatOptions = false;
+
+        if (is_singular()) {
+            if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include') {
+                $pageFormatOptions = true;
+                $MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
+                if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente)) {
+                    $unload = false;
+                }
+            }
+        }
+        if ($pageFormatOptions === false) {
+            $post_format = WpPostTypes::CalculatePostFormat($wp_query);
+
+            $plugins = $this->filter2->GetPluginsFilteredByPostFormat($post_format);
+
+            if (!empty($plugins))
+            {
+                if (in_array($pluginAttivoCorrente, $plugins, true)) {
+                    $unload = false;
+                }
+            }
+        }
+        return $unload;
+    }
+
+    private function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $disabilitaPerQuestoDevice): bool
+    {
+        $filtriPerGruppi = $this->filter2->GetFilterGroups()['group'];
+        if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default') {
+            $var = $filtriPerGruppi[$mobileOrDesktop];
+            if (!empty($var['plugins'])
+                && false !== strpos($var['plugins'], $pluginAttivoCorrente)) {
+                $disabilitaPerQuestoDevice = false;
+            }
+        }
+        if ($disabilitaPerQuestoDevice) {
+        } else {
+            //oEmbed Content API
+            if (is_embed()) {
+                $var1 = $filtriPerGruppi['content-card'];
+                if (!empty($var1['plugins'])) {
+                    if (false !== strpos($var1['plugins'], $pluginAttivoCorrente)) {
+                        $unload = false;
+                    }
+                }
+            } else {
+                $unload = $this->extract2($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $filtriPerGruppi);
+            }
+        }
+        return $unload;
     }
 }
