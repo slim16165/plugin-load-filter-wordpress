@@ -222,7 +222,7 @@ class PluginLoadFilter
     //TODO: non ci si capisce un cazzo
     private function CercaUnMatchConUrlPagina() : mixed
     {
-        $keys_UrlOrTipology = $this->getKeys_UrlOrTipology();
+        $keys_UrlOrTipology = $this->filter2->getKeys_UrlOrTipology($this);
 
         $urlkey = null;
 
@@ -268,12 +268,9 @@ class PluginLoadFilter
 
         //admin mode filter
         $plugins = $this->filter2->GetAdminPlugins();
-
-        if(!empty($plugins))
+        if(!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true))
         {
-            if (in_array($pluginAttivoCorrente, $plugins, true)) {
-                $unload = true;
-            }
+           $unload = true;
         }
 
         //page filter
@@ -281,15 +278,10 @@ class PluginLoadFilter
         {
             $plugins = $this->filter2->GetPagePlugins();
 
-            if(!empty($plugins))
+            if(!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true))
             {
-                if (in_array($pluginAttivoCorrente, $plugins, true))
-                {
-                    $unload = true;
-
-                    $unload = $this->extracted2($is_mobile, $pluginAttivoCorrente);
-
-                }
+                $unload = true;
+                $unload = $this->extracted2($is_mobile, $pluginAttivoCorrente, $unload);
             }
         }
         if (!$unload) //Sopra c'è lo stesso if...
@@ -492,29 +484,6 @@ class PluginLoadFilter
     }
 
     /**
-     * @return array
-     */
-    private function getKeys_UrlOrTipology(): array
-    {
-        $keys_UrlOrTipology = array();
-        //Dai la priorità all'URL generico
-
-        $key = 'amp';
-        $var = $this->filter2->GetUrlKey()[$key];
-
-        if (!empty($var)) {
-            $keys_UrlOrTipology[$key] = $var;
-        }
-
-        $keys_UrlOrTipology = $this->filter2->GetUrlsKeyList($keys_UrlOrTipology);
-
-        $keys_UrlOrTipology['wp-json'] = 'wp-json';
-        $keys_UrlOrTipology['heartbeat'] = 'admin-ajax';
-        $keys_UrlOrTipology['admin-ajax'] = 'admin-ajax';
-        return $keys_UrlOrTipology;
-    }
-
-    /**
      * @param mixed $kwd
      * @return false|int
      */
@@ -523,7 +492,7 @@ class PluginLoadFilter
         return preg_match("#([/&.?=])$kwd([/&.?=]|$)#u", $_SERVER['REQUEST_URI']);
     }
 
-    private function extracted2(string $is_mobile, $pluginAttivoCorrente): array
+    private function extracted2(string $is_mobile, $pluginAttivoCorrente, &$unload): array
     {
         //desktop/mobile device disable filter
         $disabilitaPerQuestoDevice = true;
