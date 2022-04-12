@@ -167,21 +167,11 @@ class FilterType
     {
         $disabilitaPerQuestoDevice = $this->extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
 
-        if (!$disabilitaPerQuestoDevice)
-        {
-            if (!is_embed())
-            {
-                $unload = $this->HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
-
-                if ($pageFormatOptions === false) {
-                    $this->isUnload($pluginAttivoCorrente, $unload);
-                }
-            }
-        }
+        $unload = FilterType::extracted($disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions, $this);
         return $unload;
     }
 
-    private function HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, &$pageFormatOptions): bool
+    private static function HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, &$pageFormatOptions): bool
     {
         $unload = false;
         $pageFormatOptions = false;
@@ -226,5 +216,19 @@ class FilterType
             }
         }
         return $disabilitaPerQuestoDevice;
+    }
+
+    private static function extracted(bool $disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions, FilterType $instance): array
+    {
+        if (!$disabilitaPerQuestoDevice) {
+            if (!is_embed()) {
+                $unload = $instance->HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
+
+                if ($pageFormatOptions === false) {
+                    $instance->isUnload($pluginAttivoCorrente, $unload);
+                }
+            }
+        }
+        return $unload;
     }
 }
