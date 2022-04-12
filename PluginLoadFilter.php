@@ -37,14 +37,15 @@ $plugin_load_filter = new PluginLoadFilter();
 
 class PluginLoadFilter
 {
-    private static FilterType $filter2;
-    private $cache;
+    private static $cache;
 
     public function __construct()
     {
-        $this->cache = null;
+        self::$cache = null;
         add_filter('pre_option_active_plugins', array(&$this, 'active_plugins'));
     }
+
+
 
     public function active_plugins()
     {
@@ -59,13 +60,13 @@ class PluginLoadFilter
 
     //Plugin Load Filter Main (active plugins/modules filtering)
     //Only the plugins which are returned by this method will be loaded
-    public function FilterActivePlugins()
+    public static function FilterActivePlugins()
     {
         $shouldReturn = false;
         $REQUEST_URI = $_SERVER['REQUEST_URI'];
 
         //Metodo principale
-        $pluginAttivi = $this->GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
+        $pluginAttivi = self::GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
 
         #region Cerca se ci sono impostazioni per URL - URL filter (max priority)
 
@@ -73,7 +74,7 @@ class PluginLoadFilter
 
         //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
         $cacheKey = md5("plf_url{$REQUEST_URI}");
-        $active_plugins = $this->cache[$cacheKey]['active_plugins'];
+        $active_plugins = self::$cache[$cacheKey]['active_plugins'];
         if (!empty($active_plugins))
         {
             $toReturn = $active_plugins;
@@ -82,17 +83,18 @@ class PluginLoadFilter
         //Uso come key_UrlOrTipology per l'accesso alla cache l'url
         //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
         //Se trova un match e lo restituisce in output
-        $urlkey = $this->CercaUnMatchConUrlPagina();
+        $urlkey = self::CercaUnMatchConUrlPagina();
 
         if($toReturn == null)
         {
             if ($urlkey !== false && is_string($urlkey))
             {
-                $toReturn = $this->extracted1($pluginAttivi, $urlkey, $cacheKey);
+                $pluginAttiviFinale = PluginLoadFilter::CheckIfPluginToUnload($pluginAttivi, $urlkey);
+                $toReturn = $pluginAttiviFinale;
+                self::$cache[$cacheKey]['active_plugins'] = $toReturn;
             }
-
-            #endregion
         }
+        
         if($toReturn == null)
         {
             //Admin mode exclude
@@ -101,27 +103,27 @@ class PluginLoadFilter
         }
         if($toReturn == null)
         {
-            #region Anticipa (rispetto a Wordpress)
+            #region Anticipa (rispetto a WordPress)
             //Before plugins loaded, it does not use conditional branch such as is_home,
             // to set wp_query, wp in temporary query
             if (empty($GLOBALS['wp_the_query']))
             {
-                if ($this->filter2->GesticiRewriteRule() === false)
+                if (FilterType::GesticiRewriteRule() === false)
                     $toReturn = false;
 
-                $this->DoSomeWpQuery();
+                self::DoSomeWpQuery();
             }
             #endregion
         }
         if($toReturn == null)
         {
-            $shorcodes = $this->GetShortcodesFromContent();
+            $shorcodes = self::GetShortcodesFromContent();
 
             //Gestione articoli singoli
             if (is_single())
             {
-                $pluginDaRimuovereDiDefault = $this->getPluginDaRimuovereDiDefault();
-                $pluginAttivi = $this->RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+                $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
+                $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
             }
         }
         if($toReturn == null)
@@ -134,7 +136,7 @@ class PluginLoadFilter
             $is_mobile = HelperClass::IsMobile();
             foreach ($pluginAttivi as $pluginAttivoCorrente)
             {
-                $result = $this->filter2->CheckIfPluginIsToLoad($pluginAttivoCorrente, $is_mobile, $this);
+                $result = FilterType::CheckIfPluginIsToLoad($pluginAttivoCorrente, $is_mobile);
 
                 if (!is_null($result))
                 {
@@ -197,11 +199,11 @@ class PluginLoadFilter
         return maybe_unserialize($active_plugins);
     }
 
-    private function CercaUnMatchConUrlPagina(): mixed
+    private static function CercaUnMatchConUrlPagina(): mixed
     {
-        $plugins = $this->filter2->getKeys_UrlOrTipology($this);
+        $plugins = FilterType::getKeys_UrlOrTipology();
 
-        $urlkey = $this->getUrlkey($plugins);
+        $urlkey = PluginLoadFilter::getUrlkey($plugins);
         return $urlkey;
     }
 
@@ -248,30 +250,22 @@ class PluginLoadFilter
         return $tagFound;
     }
 
-    private function extracted1($pluginAttivi, string $urlkey, string $keyid): array
+    private static function CheckIfPluginToUnload($pluginAttivi, string $urlkey): array
     {
         $pluginAttiviFinale = array();
 
         foreach ($pluginAttivi as $plugin)
         {
-            $unload = false;
-            $pluginDaRimuovere = $plugin;
+            $plugins = FilterType::GetPlfurlkeyPlugins($urlkey);
 
-            $plugins = $this->filter2->GetPlfurlkeyPlugins($urlkey);
+            //Se il plugin viene trovato viene rimosso
+            $isPluginToUnload = FilterType::SeIlPluginVieneTrovatoèDaRimuovere($plugins, $plugin);
 
-            if (!empty($plugins))
-            {
-                if (false !== strpos($plugins, $pluginDaRimuovere))
-                {
-                    $unload = true;
-                }
-            }
-            if (!$unload)
+            if (!$isPluginToUnload)
             {
                 $pluginAttiviFinale[] = $plugin;
             }
         }
-        $this->cache[$keyid]['active_plugins'] = $pluginAttiviFinale;
 
         return $pluginAttiviFinale;
     }
@@ -318,14 +312,14 @@ class PluginLoadFilter
         return preg_match("#([/&.?=])$kwd([/&.?=]|$)#u", $_SERVER['REQUEST_URI']);
     }
 
-    private function getUrlkey(array $keys_UrlOrTipology)
+    private static function getUrlkey(array $keys_UrlOrTipology)
     {
         $urlkey = null;
 
         foreach ($keys_UrlOrTipology as $key_UrlOrTipology => $kwd)
-            if ($this->CercaUrl($kwd))
+            if (self::CercaUrl($kwd))
             {
-                if ($this->ShouldSkipAnyAction($key_UrlOrTipology))
+                if (self::ShouldSkipAnyAction($key_UrlOrTipology))
                     continue;
                 else
                     $urlkey = $key_UrlOrTipology;

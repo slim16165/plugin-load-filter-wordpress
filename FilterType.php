@@ -124,30 +124,30 @@ class FilterType
 
     public static function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
     {
-        $unload = false;
+        $isPluginToUnload = false;
 
         //admin mode filter
         $plugins = self::GetAdminPlugins();
         if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
-            $unload = true;
+            $isPluginToUnload = true;
         }
 
         //page filter
-        if (!$unload) {
+        if (!$isPluginToUnload) {
             $plugins = self::GetPagePlugins();
 
             if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
-                $unload = true;
-                $unload = self::extracted2($is_mobile, $pluginAttivoCorrente, $unload);
+                $isPluginToUnload = true;
+                $isPluginToUnload = self::extracted2($is_mobile, $pluginAttivoCorrente, $isPluginToUnload);
             }
         }
-        if (!$unload) //Sopra c'è lo stesso if...
+        if (!$isPluginToUnload) //Sopra c'è lo stesso if...
         {
             return $pluginAttivoCorrente;
         }
     }
 
-    private static  function extracted2(string $is_mobile, $pluginAttivoCorrente, &$unload): array
+    private static  function extracted2(string $is_mobile, $pluginAttivoCorrente, &$isPluginToUnload): array
     {
         //desktop/mobile device disable filter
         $disabilitaPerQuestoDevice = true;
@@ -159,21 +159,21 @@ class FilterType
             $pageBehaviourMobileOrDesktop = PluginLoadFilter_extra::extracted($mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
         }
 
-        $unload = $selFiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
-        return $unload;
+        $isPluginToUnload = $selFiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+        return $isPluginToUnload;
     }
 
     private  static function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
     {
         $disabilitaPerQuestoDevice = FilterType::extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
 
-        $unload = FilterType::extracted($disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
-        return $unload;
+        $isPluginToUnload = FilterType::extracted($disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
+        return $isPluginToUnload;
     }
 
     private static function HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, &$pageFormatOptions): bool
     {
-        $unload = false;
+        $isPluginToUnload = false;
         $pageFormatOptions = false;
 
         if (is_singular())
@@ -182,14 +182,14 @@ class FilterType
                 $pageFormatOptions = true;
                 $MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
                 if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente)) {
-                    $unload = false;
+                    $isPluginToUnload = false;
                 }
             }
         }
-        return $unload;
+        return $isPluginToUnload;
     }
 
-    private static function isUnload($pluginAttivoCorrente, bool &$unload): void
+    private static function isUnload($pluginAttivoCorrente, bool &$isPluginToUnload): void
     {
         $post_format = WpPostTypes::CalculatePostFormat();
 
@@ -197,9 +197,23 @@ class FilterType
 
         if (!empty($plugins)) {
             if (in_array($pluginAttivoCorrente, $plugins, true)) {
-                $unload = false;
+                $isPluginToUnload = false;
             }
         }
+    }
+
+    public static function SeIlPluginVieneTrovatoèDaRimuovere($plugins, $plugin): bool
+    {
+        $isPluginToUnload = false;
+
+        if (!empty($plugins))
+        {
+            if (false !== strpos($plugins, $plugin))
+            {
+                $isPluginToUnload = true;
+            }
+        }
+        return $isPluginToUnload;
     }
 
     private static function extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
@@ -210,8 +224,11 @@ class FilterType
         {
             $plugins = $filtriPerGruppi['plugins'];
 
+            //TODO: usare seIlPluginVieneTrovatoèDaRimuovere()
+
             if (!empty($plugins)
-                && false !== strpos($plugins, $pluginAttivoCorrente)) {
+                && false !== strpos($plugins, $pluginAttivoCorrente))
+            {
                 $disabilitaPerQuestoDevice = false;
             }
         }
@@ -222,13 +239,13 @@ class FilterType
     {
         if (!$disabilitaPerQuestoDevice) {
             if (!is_embed()) {
-                $unload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
+                $isPluginToUnload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
 
                 if ($pageFormatOptions === false) {
-                    self::isUnload($pluginAttivoCorrente, $unload);
+                    self::isUnload($pluginAttivoCorrente, $isPluginToUnload);
                 }
             }
         }
-        return $unload;
+        return $isPluginToUnload;
     }
 }
