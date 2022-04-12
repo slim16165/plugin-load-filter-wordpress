@@ -2,7 +2,9 @@
 
 # *YaLinqo: Yet Another LINQ to Objects for PHP*
 
-[![Scrutinizer Code Quality](https://img.shields.io/scrutinizer/g/Athari/YaLinqo.svg)](https://scrutinizer-ci.com/g/Athari/YaLinqo)
+[![Scrutinizer Code Quality](https://scrutinizer-ci.com/g/slim16165/plugin-load-filter-wordpress/badges/quality-score.png?b=main)](https://scrutinizer-ci.com/g/slim16165/plugin-load-filter-wordpress/?branch=main)
+[![Build Status](https://scrutinizer-ci.com/g/slim16165/plugin-load-filter-wordpress/badges/build.png?b=main)](https://scrutinizer-ci.com/g/slim16165/plugin-load-filter-wordpress/build-status/main)
+[![Code Intelligence Status](https://scrutinizer-ci.com/g/slim16165/plugin-load-filter-wordpress/badges/code-intelligence.svg?b=main)](https://scrutinizer-ci.com/code-intelligence)
 
 
 Features
