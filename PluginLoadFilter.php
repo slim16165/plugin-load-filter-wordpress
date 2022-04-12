@@ -45,86 +45,9 @@ class PluginLoadFilter
         add_filter('pre_option_active_plugins', [&$this, 'active_plugins']);
     }
 
-    public function active_plugins()
+    public static function HandleMobileRelated($toReturn_PluginAttiviFinale, $pluginAttivi): array
     {
-        //Se si sta installando wordpress non fare nulla
-        if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING'))
-        {
-            return false;
-        }
-
-        return $this->FilterActivePlugins();
-    }
-
-    //Plugin Load Filter Main (active plugins/modules filtering)
-    //Only the plugins which are returned by this method will be loaded
-    public static function FilterActivePlugins()
-    {
-        $shouldReturn = false;
-        $REQUEST_URI = $_SERVER['REQUEST_URI'];
-
-        //Metodo principale
-        $pluginAttivi = self::GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
-
-        #region Cerca se ci sono impostazioni per URL - URL filter (max priority)
-
-        $toReturn = null;
-
-        //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
-        $cacheKey = md5("plf_url{$REQUEST_URI}");
-        $active_plugins = self::$cache[$cacheKey]['active_plugins'];
-        if (!empty($active_plugins))
-        {
-            $toReturn = $active_plugins;
-        }
-
-        //Uso come key_UrlOrTipology per l'accesso alla cache l'url
-        //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
-        //Se trova un match e lo restituisce in output
-        $urlkey = UrlRelated::CercaUnMatchConUrlPagina();
-
-        if($toReturn == null)
-        {
-            if ($urlkey !== false && is_string($urlkey))
-            {
-                $pluginAttiviFinale = PluginLoadFilter::CheckIfPluginToUnload($pluginAttivi, $urlkey);
-                $toReturn = $pluginAttiviFinale;
-                self::$cache[$cacheKey]['active_plugins'] = $toReturn;
-            }
-        }
-        
-        if($toReturn == null)
-        {
-            //Admin mode exclude
-            if (!$urlkey && is_admin())
-                $toReturn = false;
-        }
-        if($toReturn == null)
-        {
-            #region Anticipa (rispetto a WordPress)
-            //Before plugins loaded, it does not use conditional branch such as is_home,
-            // to set wp_query, wp in temporary query
-            if (empty($GLOBALS['wp_the_query']))
-            {
-                if (FilterType::GesticiRewriteRule() === false)
-                    $toReturn = false;
-
-                self::DoSomeWpQuery();
-            }
-            #endregion
-        }
-        if($toReturn == null)
-        {
-            $shorcodes = self::GetShortcodesFromContent();
-
-            //Gestione articoli singoli
-            if (is_single())
-            {
-                $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
-                $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
-            }
-        }
-        if($toReturn == null)
+        if ($toReturn_PluginAttiviFinale == null)
         {
             #region
 
@@ -144,9 +67,95 @@ class PluginLoadFilter
 
             #endregion
         }
+        return $pluginAttiviFinale;
+    }
 
-        if ($toReturn != null)
-            return $toReturn;
+    public static function HandleWordpressNotLoaded($toReturn)
+    {
+#region Anticipa (rispetto a WordPress)
+        //Before plugins loaded, it does not use conditional branch such as is_home,
+        // to set wp_query, wp in temporary query
+        #endregion
+        if ($toReturn == null && empty($GLOBALS['wp_the_query']))
+        {
+            if (FilterType::GesticiRewriteRule() === false)
+                $toReturn = false;
+
+            HelperClass::DoSomeWpQuery();
+        }
+        return $toReturn;
+    }
+
+    public static function HandleSinglePage($pluginAttivi): array
+    {
+        $REQUEST_URI = $_SERVER['REQUEST_URI'];
+        $toReturn_PluginAttiviFinale = null;
+
+        //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
+        $cacheKey = md5("plf_url{$REQUEST_URI}");
+        $toReturn_PluginAttiviFinale = self::$cache[$cacheKey]['active_plugins'];
+        if (!empty($active_plugins))
+        {
+            return $toReturn_PluginAttiviFinale;
+        }
+
+        //Uso come key_UrlOrTipology per l'accesso alla cache l'url
+        //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
+        //Se trova un match e lo restituisce in output
+        $urlkey = UrlRelated::CercaUnMatchConUrlPagina();
+
+        if ($urlkey !== false && is_string($urlkey))
+        {
+            $toReturn_PluginAttiviFinale = UrlRelated::CheckIfPluginToUnload($pluginAttivi, $urlkey);
+            self::$cache[$cacheKey]['active_plugins'] = $toReturn_PluginAttiviFinale;
+        }
+
+        return $toReturn_PluginAttiviFinale;
+    }
+
+    public function active_plugins()
+    {
+        //Se si sta installando wordpress non fare nulla
+        if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING'))
+        {
+            return false;
+        }
+
+        return $this->FilterActivePlugins();
+    }
+
+    //Plugin Load Filter Main (active plugins/modules filtering)
+    //Only the plugins which are returned by this method will be loaded
+    public static function FilterActivePlugins()
+    {
+        $shouldReturn = false;
+
+        //Metodo principale
+        $pluginAttivi = self::GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
+
+        #region Cerca se ci sono impostazioni per URL - URL filter (max priority)
+
+        $toReturn_PluginAttiviFinale = self::HandleSinglePage($pluginAttivi);
+
+        //Admin mode exclude
+        if($toReturn_PluginAttiviFinale == null && is_admin())
+        {
+            $toReturn_PluginAttiviFinale = false;
+        }
+
+        $toReturn_PluginAttiviFinale = self::HandleWordpressNotLoaded($toReturn_PluginAttiviFinale);
+
+        //Gestione articoli singoli
+        if($toReturn_PluginAttiviFinale == null && is_single())
+        {
+            $shorcodes = self::GetShortcodesFromContent();
+            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
+            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+        }
+        $pluginAttiviFinale = self::HandleMobileRelated($toReturn_PluginAttiviFinale, $pluginAttivi);
+
+        if ($toReturn_PluginAttiviFinale != null)
+            return $toReturn_PluginAttiviFinale;
 
         return $pluginAttiviFinale;
     }
@@ -214,40 +223,6 @@ class PluginLoadFilter
         }
 
         return $tagFound;
-    }
-
-    private static function CheckIfPluginToUnload($pluginAttivi, string $urlkey): array
-    {
-        $pluginAttiviFinale = array();
-
-        foreach ($pluginAttivi as $plugin)
-        {
-            $plugins = FilterType::GetPlfurlkeyPlugins($urlkey);
-
-            //Se il plugin viene trovato viene rimosso
-            $isPluginToUnload = FilterType::SeIlPluginVieneTrovatoèDaRimuovere($plugins, $plugin);
-
-            if (!$isPluginToUnload)
-            {
-                $pluginAttiviFinale[] = $plugin;
-            }
-        }
-
-        return $pluginAttiviFinale;
-    }
-
-    private static function DoSomeWpQuery(): void
-    {
-        $GLOBALS['wp_the_query'] = new WP_Query();
-        $GLOBALS['wp_query'] = $GLOBALS['wp_the_query'];
-        $GLOBALS['wp_rewrite'] = new WP_Rewrite();
-        $GLOBALS['wp'] = new WP();
-        //register_taxonomy(category, post_tag, post_format) support for is_archive
-        WpPostTypes::force_initial_taxonomies();
-        //Post Format, Custom Post Type support
-//				add_action('parse_request', array(&$this, 'parse_request'));
-        $GLOBALS['wp']->parse_request('');
-        $GLOBALS['wp']->query_posts();
     }
 
     private static function getPluginDaRimuovereDiDefault(): array

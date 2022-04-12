@@ -81,4 +81,18 @@ class HelperClass
         $is_mobile = apply_filters('custom_is_mobile', $is_mobile);
         return $is_mobile;
     }
+
+    public static function DoSomeWpQuery(): void
+    {
+        $GLOBALS['wp_the_query'] = new WP_Query();
+        $GLOBALS['wp_query'] = $GLOBALS['wp_the_query'];
+        $GLOBALS['wp_rewrite'] = new WP_Rewrite();
+        $GLOBALS['wp'] = new WP();
+        //register_taxonomy(category, post_tag, post_format) support for is_archive
+        WpPostTypes::force_initial_taxonomies();
+        //Post Format, Custom Post Type support
+//				add_action('parse_request', array(&$this, 'parse_request'));
+        $GLOBALS['wp']->parse_request('');
+        $GLOBALS['wp']->query_posts();
+    }
 }

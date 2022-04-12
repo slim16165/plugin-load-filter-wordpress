@@ -56,4 +56,24 @@ class UrlRelated
         $urlkey = UrlRelated::getUrlkey($plugins);
         return $urlkey;
     }
+
+    public static function CheckIfPluginToUnload($pluginAttivi, string $urlkey): array
+    {
+        $pluginAttiviFinale = array();
+
+        foreach ($pluginAttivi as $plugin)
+        {
+            $plugins = FilterType::GetPlfurlkeyPlugins($urlkey);
+
+            //Se il plugin viene trovato viene rimosso
+            $isPluginToUnload = FilterType::SeIlPluginVieneTrovatoèDaRimuovere($plugins, $plugin);
+
+            if (!$isPluginToUnload)
+            {
+                $pluginAttiviFinale[] = $plugin;
+            }
+        }
+
+        return $pluginAttiviFinale;
+    }
 }
