@@ -40,7 +40,7 @@ class FilterType
 
     public static function GetPluginsFilteredByPostFormat(string $post_format): array
     {
-        if(empty($post_format))
+        if (empty($post_format))
             return [];
 
         $plugins = self::$filter[$post_format]['plugins'];
@@ -64,7 +64,8 @@ class FilterType
 
         $ar_key = (!empty($filter_urls)) ? array_filter($plugins) : array();
 
-        foreach ($ar_key as $key_UrlOrTipology) {
+        foreach ($ar_key as $key_UrlOrTipology)
+        {
             $keys_UrlOrTipology[$key_UrlOrTipology] = $key_UrlOrTipology;
         }
         return $keys_UrlOrTipology;
@@ -72,7 +73,7 @@ class FilterType
 
     private static function SplitAndTrim(string $stringa, string $separator = null): array
     {
-        if($separator == null)
+        if ($separator == null)
             $separator = ',';
 
         $stringSplit = self::StringSplit($stringa, ',');
@@ -81,7 +82,7 @@ class FilterType
 
     private static function StringSplit(string $stringa, string $separator = null): array
     {
-        if($separator == null)
+        if ($separator == null)
             $separator = ',';
 
         return explode($separator, $stringa);
@@ -114,7 +115,8 @@ class FilterType
         // Monitor rewrite_rule to respond, skip plugin filtering if changed
         $rewrite_rules = get_option('rewrite_rules');
         $plf_queryvars = get_option('plf_queryvars');
-        if (empty($rewrite_rules) || empty($plf_queryvars['rewrite_rules']) || $rewrite_rules !== $plf_queryvars['rewrite_rules']) {
+        if (empty($rewrite_rules) || empty($plf_queryvars['rewrite_rules']) || $rewrite_rules !== $plf_queryvars['rewrite_rules'])
+        {
             $plf_queryvars['rewrite_rules'] = (empty($rewrite_rules)) ? '' : $rewrite_rules;
             update_option('plf_queryvars', $plf_queryvars);
             return false;
@@ -128,15 +130,18 @@ class FilterType
 
         //admin mode filter
         $plugins = self::GetAdminPlugins();
-        if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
+        if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true))
+        {
             $isPluginToUnload = true;
         }
 
         //page filter
-        if (!$isPluginToUnload) {
+        if (!$isPluginToUnload)
+        {
             $plugins = self::GetPagePlugins();
 
-            if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
+            if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true))
+            {
                 $isPluginToUnload = true;
                 $isPluginToUnload = self::extracted2($is_mobile, $pluginAttivoCorrente, $isPluginToUnload);
             }
@@ -147,7 +152,7 @@ class FilterType
         }
     }
 
-    private static  function extracted2(string $is_mobile, $pluginAttivoCorrente, &$isPluginToUnload): array
+    private static function extracted2(string $is_mobile, $pluginAttivoCorrente, &$isPluginToUnload): array
     {
         //desktop/mobile device disable filter
         $disabilitaPerQuestoDevice = true;
@@ -159,11 +164,11 @@ class FilterType
             $pageBehaviourMobileOrDesktop = PluginLoadFilter_extra::extracted($mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
         }
 
-        $isPluginToUnload = $selFiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+        $isPluginToUnload = self::FiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
         return $isPluginToUnload;
     }
 
-    private  static function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
+    private static function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
     {
         $disabilitaPerQuestoDevice = FilterType::extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
 
@@ -178,10 +183,12 @@ class FilterType
 
         if (is_singular())
         {
-            if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include') {
+            if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include')
+            {
                 $pageFormatOptions = true;
                 $MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
-                if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente)) {
+                if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente))
+                {
                     $isPluginToUnload = false;
                 }
             }
@@ -189,19 +196,24 @@ class FilterType
         return $isPluginToUnload;
     }
 
-    private static function isUnload($pluginAttivoCorrente, bool &$isPluginToUnload): void
+    private static function isUnload($pluginAttivoCorrente, bool &$isPluginToUnload): bool
     {
         $post_format = WpPostTypes::CalculatePostFormat();
 
         $plugins = self::GetPluginsFilteredByPostFormat($post_format);
 
-        if (!empty($plugins)) {
-            if (in_array($pluginAttivoCorrente, $plugins, true)) {
+        if (!empty($plugins))
+        {
+            if (in_array($pluginAttivoCorrente, $plugins, true))
+            {
                 $isPluginToUnload = false;
             }
         }
+
+        return $isPluginToUnload;
     }
 
+    //TODO: usare ovunque si riesce
     public static function SeIlPluginVieneTrovatoèDaRimuovere($plugins, $plugin): bool
     {
         $isPluginToUnload = false;
@@ -225,7 +237,6 @@ class FilterType
             $plugins = $filtriPerGruppi['plugins'];
 
             //TODO: usare seIlPluginVieneTrovatoèDaRimuovere()
-
             if (!empty($plugins)
                 && false !== strpos($plugins, $pluginAttivoCorrente))
             {
@@ -237,12 +248,15 @@ class FilterType
 
     private static function extracted(bool $disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions): array
     {
-        if (!$disabilitaPerQuestoDevice) {
-            if (!is_embed()) {
+        if (!$disabilitaPerQuestoDevice)
+        {
+            if (!is_embed())
+            {
                 $isPluginToUnload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
 
-                if ($pageFormatOptions === false) {
-                    self::isUnload($pluginAttivoCorrente, $isPluginToUnload);
+                if ($pageFormatOptions === false)
+                {
+                    $isPluginToUnload = self::isUnload($pluginAttivoCorrente, $isPluginToUnload);
                 }
             }
         }

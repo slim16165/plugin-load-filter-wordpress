@@ -42,10 +42,8 @@ class PluginLoadFilter
     public function __construct()
     {
         self::$cache = null;
-        add_filter('pre_option_active_plugins', array(&$this, 'active_plugins'));
+        add_filter('pre_option_active_plugins', [&$this, 'active_plugins']);
     }
-
-
 
     public function active_plugins()
     {
@@ -83,7 +81,7 @@ class PluginLoadFilter
         //Uso come key_UrlOrTipology per l'accesso alla cache l'url
         //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
         //Se trova un match e lo restituisce in output
-        $urlkey = self::CercaUnMatchConUrlPagina();
+        $urlkey = UrlRelated::CercaUnMatchConUrlPagina();
 
         if($toReturn == null)
         {
@@ -199,38 +197,6 @@ class PluginLoadFilter
         return maybe_unserialize($active_plugins);
     }
 
-    private static function CercaUnMatchConUrlPagina(): mixed
-    {
-        $plugins = FilterType::getKeys_UrlOrTipology();
-
-        $urlkey = PluginLoadFilter::getUrlkey($plugins);
-        return $urlkey;
-    }
-
-    private static function ShouldSkipAnyAction($currentUrl): bool
-    {
-        //Se è heartbeat o admin-ajax skippa
-        $skip_actions = false;
-        $action = $_REQUEST['action'];
-
-        if ($currentUrl === 'heartbeat')
-        {
-            if (empty($action) || $action !== 'heartbeat')
-            {
-                $skip_actions = true;
-            }
-        } else if ($currentUrl === 'admin-ajax')
-        {
-            //exclude action : plugin_load_filter
-            if (!(empty($action) || $action != 'revious-microdata'))
-            {
-                $skip_actions = true;
-            }
-        }
-
-        return $skip_actions;
-    }
-
     private static function GetShortcodesFromContent(): array
     {
         global $wp_query;
@@ -307,25 +273,4 @@ class PluginLoadFilter
         return $pluginAttivi;
     }
 
-    private static function CercaUrl(mixed $kwd): mixed
-    {
-        return preg_match("#([/&.?=])$kwd([/&.?=]|$)#u", $_SERVER['REQUEST_URI']);
-    }
-
-    private static function getUrlkey(array $keys_UrlOrTipology)
-    {
-        $urlkey = null;
-
-        foreach ($keys_UrlOrTipology as $key_UrlOrTipology => $kwd)
-            if (self::CercaUrl($kwd))
-            {
-                if (self::ShouldSkipAnyAction($key_UrlOrTipology))
-                    continue;
-                else
-                    $urlkey = $key_UrlOrTipology;
-
-                return $urlkey;
-            }
-        return $urlkey;
-    }
 }
