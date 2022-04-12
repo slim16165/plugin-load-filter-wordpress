@@ -2,15 +2,10 @@
 
 class FilterType
 {
-    //	filter['_admin']
-    //	filter['_pagefilter']
-    //	filter['group']
-    //	filter['plfurlkey']
-    //	filter['urlkey']
-    //	filter['urlkeylist']
     public const Admin = '_admin';
     public const Pagefilter = '_pagefilter';
     public const Groups = 'group';
+    public const Plfurlkey = 'plfurlkey';
     public const Urlkey = 'urlkey';
     public const Urlkeylist = 'urlkeylist';
     private static array $filter = array();  //Plugin Load Filter Setting option data
@@ -138,7 +133,7 @@ class FilterType
 
             if ($isPluginToUnload)
             {
-                $isPluginToUnload = self::extracted2($is_mobile, $pluginAttivoCorrente, true);
+                $isPluginToUnload = self::FiltraPerGruppi_extracted2($is_mobile, $pluginAttivoCorrente, true);
             }
         }
 
@@ -148,7 +143,7 @@ class FilterType
         }
     }
 
-    private static function extracted2(string $is_mobile, $pluginAttivoCorrente): array
+    private static function FiltraPerGruppi_extracted2(string $is_mobile, $pluginAttivoCorrente): array
     {
         //desktop/mobile device disable filter
         $disabilitaPerQuestoDevice = true;
@@ -161,16 +156,14 @@ class FilterType
             $pageBehaviourMobileOrDesktop = PluginLoadFilter_extra::extracted($mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
         }
 
-        $isPluginToUnload = self::FiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+        //FiltraPerGruppi
+        $disabilitaPerQuestoDevice = FilterType::FiltraPerGruppi_extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
 
-        return $isPluginToUnload;
-    }
+        if (!$disabilitaPerQuestoDevice)
+                $isPluginToUnload1 = FilterType::FiltraPerGruppi_extracted($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
 
-    private static function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
-    {
-        $disabilitaPerQuestoDevice = FilterType::extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
+        $isPluginToUnload = $isPluginToUnload1;
 
-        $isPluginToUnload = FilterType::extracted($disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
         return $isPluginToUnload;
     }
 
@@ -194,23 +187,6 @@ class FilterType
         return $isPluginToUnload;
     }
 
-    private static function isUnload($pluginAttivoCorrente, bool &$isPluginToUnload): bool
-    {
-        $post_format = WpPostTypes::CalculatePostFormat();
-
-        $plugins = self::GetPluginsFilteredByPostFormat($post_format);
-
-        if (!empty($plugins))
-        {
-            if (in_array($pluginAttivoCorrente, $plugins, true))
-            {
-                $isPluginToUnload = false;
-            }
-        }
-
-        return $isPluginToUnload;
-    }
-
     //TODO: usare ovunque si riesce
     public static function SeIlPluginVieneTrovatoèDaRimuovere(string $plugins, string $plugin): bool
     {
@@ -225,33 +201,33 @@ class FilterType
         return $isPluginToUnload;
     }
 
-    private static function extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
+    private static function FiltraPerGruppi_extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
     {
         $filtriPerGruppi = self::GetFilterGroups()['group'][$mobileOrDesktop];
 
         if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default')
         {
             $plugins = $filtriPerGruppi['plugins'];
-
             $disabilitaPerQuestoDevice = self::SeIlPluginVieneTrovatoèDaRimuovere($plugins, $pluginAttivoCorrente);
         }
         return $disabilitaPerQuestoDevice;
     }
 
-    private static function extracted(bool $disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions): array
+    private static function FiltraPerGruppi_extracted($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions): array
     {
-        if (!$disabilitaPerQuestoDevice)
+        if (!is_embed())
         {
-            if (!is_embed())
-            {
-                $isPluginToUnload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
+            $isPluginToUnload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
 
-                if ($pageFormatOptions === false)
-                {
-                    $isPluginToUnload = self::isUnload($pluginAttivoCorrente, $isPluginToUnload);
-                }
+            if ($pageFormatOptions === false)
+            {
+                $post_format = WpPostTypes::CalculatePostFormat();
+
+                $plugins = FilterType::GetPluginsFilteredByPostFormat($post_format);
+                $isPluginToUnload = SeIlPluginVieneTrovatoèDaRimuovere2($plugins, $pluginAttivoCorrente);
             }
         }
+
         return $isPluginToUnload;
     }
 }
