@@ -13,54 +13,54 @@ class FilterType
     public const Groups = 'group';
     public const Urlkey = 'urlkey';
     public const Urlkeylist = 'urlkeylist';
-    private array $filter = array();  //Plugin Load Filter Setting option data
+    private static array $filter = array();  //Plugin Load Filter Setting option data
 
     public function __construct()
     {
         self::$filter = get_option('plf_option');
     }
 
-    public function getFilterUrlKeyList(): mixed
+    public static function getFilterUrlKeyList(): mixed
     {
-        $plugins = $this->filter[FilterType::Urlkeylist];
-        return $this->SplitAndTrim($plugins, PHP_EOL);
+        $plugins = $self::filter[FilterType::Urlkeylist];
+        return FilterType::SplitAndTrim($plugins, PHP_EOL);
 
     }
 
-    public function GetUrlKey(): mixed
+    public static function GetUrlKey(): mixed
     {
-        return $this->filter[FilterType::Urlkey];
+        return $self::filter[FilterType::Urlkey];
     }
 
-    public function GetPagePlugins(): array
+    public static function GetPagePlugins(): array
     {
-        $plugins = $this->filter[FilterType::Pagefilter]['plugins'];
-        return $this->SplitAndTrim($plugins);
+        $plugins = $self::filter[FilterType::Pagefilter]['plugins'];
+        return FilterType::SplitAndTrim($plugins);
     }
 
-    public function GetPluginsFilteredByPostFormat(string $post_format): array
+    public static function GetPluginsFilteredByPostFormat(string $post_format): array
     {
         if(empty($post_format))
             return [];
 
-        $plugins = $this->filter[$post_format]['plugins'];
-        return $this->SplitAndTrim($plugins);
+        $plugins = $self::filter[$post_format]['plugins'];
+        return FilterType::SplitAndTrim($plugins);
     }
 
-    public function GetAdminPlugins(): array
+    public static function GetAdminPlugins(): array
     {
-        $plugins = $this->filter[FilterType::Admin]['plugins'];
-        return $this->SplitAndTrim($plugins, ",");
+        $plugins = $self::filter[FilterType::Admin]['plugins'];
+        return FilterType::SplitAndTrim($plugins, ",");
     }
 
-    public function GetPlfurlkeyPlugins($urlkey): mixed
+    public static function GetPlfurlkeyPlugins($urlkey): mixed
     {
-        return $this->filter['plfurlkey'][$urlkey]['plugins'];
+        return $self::filter['plfurlkey'][$urlkey]['plugins'];
     }
 
-    public function GetUrlsKeyList(array $keys_UrlOrTipology): array
+    public static function GetUrlsKeyList(array $keys_UrlOrTipology): array
     {
-        $plugins = $this->filter->getFilterUrlKeyList();
+        $plugins = $self::filter->getFilterUrlKeyList();
 
         $ar_key = (!empty($filter_urls)) ? array_filter($plugins) : array();
 
@@ -70,7 +70,7 @@ class FilterType
         return $keys_UrlOrTipology;
     }
 
-    private function SplitAndTrim(string $stringa, string $separator = null): array
+    private static function SplitAndTrim(string $stringa, string $separator = null): array
     {
         if($separator == null)
             $separator = ',';
@@ -87,18 +87,18 @@ class FilterType
         return explode($separator, $stringa);
     }
 
-    public function getKeys_UrlOrTipology(PluginLoadFilter $pluginLoadFilter): array
+    public static function getKeys_UrlOrTipology(): array
     {
         $plugins1 = array();
         //Dai la priorità all'URL generico
 
-        $plugins = $this->filter->GetUrlKey()['amp'];
+        $plugins = $self::filter->GetUrlKey()['amp'];
         if (!empty($plugins))
         {
             $plugins1['amp'] = $plugins;
         }
 
-        $plugins1 = $this->filter->GetUrlsKeyList($plugins1);
+        $plugins1 = $self::filter->GetUrlsKeyList($plugins1);
 
         $plugins1['wp-json'] = 'wp-json';
         $plugins1['heartbeat'] = 'admin-ajax';
@@ -107,7 +107,7 @@ class FilterType
         return $plugins1;
     }
 
-    public function GesticiRewriteRule(): bool
+    public static function GesticiRewriteRule(): bool
     {
         // If rewrite_rule is cleared when the plugin is disabled etc., custom post typeOfPage cannot be determined until rewrite_rule is updated
         // At this time, the custom post typeOfPage page will be skipped to the home, so it will not be possible to get out of the state where rewrite_rule cannot be updated after all
@@ -122,23 +122,23 @@ class FilterType
         return true;
     }
 
-    public function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
+    public static function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
     {
         $unload = false;
 
         //admin mode filter
-        $plugins = $this->filter2->GetAdminPlugins();
+        $plugins = $self::filter2->GetAdminPlugins();
         if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
             $unload = true;
         }
 
         //page filter
         if (!$unload) {
-            $plugins = $this->filter2->GetPagePlugins();
+            $plugins = $self::filter2->GetPagePlugins();
 
             if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
                 $unload = true;
-                $unload = $this->extracted2($is_mobile, $pluginAttivoCorrente, $unload);
+                $unload = self::extracted2($is_mobile, $pluginAttivoCorrente, $unload);
             }
         }
         if (!$unload) //Sopra c'è lo stesso if...
@@ -147,7 +147,7 @@ class FilterType
         }
     }
 
-    private function extracted2(string $is_mobile, $pluginAttivoCorrente, &$unload): array
+    private static  function extracted2(string $is_mobile, $pluginAttivoCorrente, &$unload): array
     {
         //desktop/mobile device disable filter
         $disabilitaPerQuestoDevice = true;
@@ -159,15 +159,15 @@ class FilterType
             $pageBehaviourMobileOrDesktop = PluginLoadFilter_extra::extracted($mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
         }
 
-        $unload = $this->FiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+        $unload = $selFiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
         return $unload;
     }
 
-    private function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
+    private  static function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
     {
-        $disabilitaPerQuestoDevice = $this->extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
+        $disabilitaPerQuestoDevice = FilterType::extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
 
-        $unload = FilterType::extracted($disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions, $this);
+        $unload = FilterType::extracted($disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
         return $unload;
     }
 
@@ -189,11 +189,11 @@ class FilterType
         return $unload;
     }
 
-    private function isUnload($pluginAttivoCorrente, bool &$unload): void
+    private static function isUnload($pluginAttivoCorrente, bool &$unload): void
     {
         $post_format = WpPostTypes::CalculatePostFormat();
 
-        $plugins = $this->filter2->GetPluginsFilteredByPostFormat($post_format);
+        $plugins = $self::filter2->GetPluginsFilteredByPostFormat($post_format);
 
         if (!empty($plugins)) {
             if (in_array($pluginAttivoCorrente, $plugins, true)) {
@@ -202,9 +202,9 @@ class FilterType
         }
     }
 
-    private function extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
+    private static function extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
     {
-        $filtriPerGruppi = $this->filter2->GetFilterGroups()['group'][$mobileOrDesktop];
+        $filtriPerGruppi = $self::filter2->GetFilterGroups()['group'][$mobileOrDesktop];
 
         if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default')
         {
@@ -218,14 +218,14 @@ class FilterType
         return $disabilitaPerQuestoDevice;
     }
 
-    private static function extracted(bool $disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions, FilterType $instance): array
+    private static function extracted(bool $disabilitaPerQuestoDevice, $pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions): array
     {
         if (!$disabilitaPerQuestoDevice) {
             if (!is_embed()) {
                 $unload = $instance->HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
 
                 if ($pageFormatOptions === false) {
-                    $instance->isUnload($pluginAttivoCorrente, $unload);
+                    FilterType::isUnload($pluginAttivoCorrente, $unload);
                 }
             }
         }
