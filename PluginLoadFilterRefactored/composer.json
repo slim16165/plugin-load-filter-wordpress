@@ -1,0 +1,15 @@
+{
+  "name": "gik25/PluginLoadFilterRefactored",
+  "description": "description",
+  "minimum-stability": "dev",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "gik25",
+      "email": "email@example.com"
+    }
+  ],
+  "require": {
+    "athari/yalinqo": "^2.0"
+  }
+}
