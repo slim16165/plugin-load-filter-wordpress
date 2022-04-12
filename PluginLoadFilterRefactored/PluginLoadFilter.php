@@ -68,31 +68,6 @@ class PluginLoadFilter
         return $pluginAttivi;
     }
 
-    public static function HandleMobileRelated($toReturn_PluginAttiviFinale, $pluginAttivi): array
-    {
-        if ($toReturn_PluginAttiviFinale == null)
-        {
-            #region
-
-            $pluginAttiviFinale = array();
-
-            //Equal treatment for when the wp_is_mobile is not yet available（wp-include/vars.php wp_is_mobile)
-            $is_mobile = HelperClass::IsMobile();
-            foreach ($pluginAttivi as $pluginAttivoCorrente)
-            {
-                $result = FilterType::CheckIfPluginIsToLoad($pluginAttivoCorrente, $is_mobile);
-
-                if (!is_null($result))
-                {
-                    $pluginAttiviFinale[] = $result;
-                }
-            }
-
-            #endregion
-        }
-        return $pluginAttiviFinale;
-    }
-
     public static function HandleWordpressNotLoaded($toReturn)
     {
         #region Anticipa (rispetto a WordPress)
@@ -168,7 +143,7 @@ class PluginLoadFilter
 
         $pluginAttivi = self::HandleSingleArticles2($pluginAttiviFinale, $pluginAttivi);
 
-        $pluginAttiviFinale = self::HandleMobileRelated($pluginAttiviFinale, $pluginAttivi);
+        $pluginAttiviFinale = MobileRelated::HandleMobileRelated($pluginAttiviFinale, $pluginAttivi);
 
         //TODO: c'è una doppia variabile $pluginAttiviFinale e $pluginAttiviFinale
         return $pluginAttiviFinale;

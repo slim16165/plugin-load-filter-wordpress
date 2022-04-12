@@ -4,9 +4,9 @@ class HelperClass
 {
     /**
      * Retrieve the current user object.
-     * @return WP_User Current user WP_User object
+     * @return int|null Current user WP_User object
      */
-    public static function wp_get_current_user(): int
+    public static function wp_get_current_user(): ?int
     {
         if (!function_exists('wp_set_current_user')) {
             return 0;
@@ -20,7 +20,7 @@ class HelperClass
      * @param int $user_id User ID
      * @return WP_User|bool WP_User object on success, false on failure.
      */
-    public static function get_userdata($user_id)
+    public static function get_userdata(int $user_id)
     {
         return self::get_user_by('id', $user_id);
     }
@@ -55,7 +55,7 @@ class HelperClass
 
         $user = HelperClass::wp_get_current_user();
 
-        if (!$user->exists())
+        if (is_a($user,WP_User)  && !$user->exists())
             return false;
 
         return true;

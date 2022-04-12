@@ -66,22 +66,7 @@ class FilterType
         return $keys_UrlOrTipology;
     }
 
-    private static function SplitAndTrim(string $stringa, string $separator = null): array
-    {
-        if ($separator == null)
-            $separator = ',';
 
-        $stringSplit = self::StringSplit($stringa, ',');
-        return array_map("trim", $stringSplit);
-    }
-
-    private static function StringSplit(string $stringa, string $separator = null): array
-    {
-        if ($separator == null)
-            $separator = ',';
-
-        return explode($separator, $stringa);
-    }
 
     public static function getKeys_UrlOrTipology(): array
     {
@@ -119,12 +104,8 @@ class FilterType
         return true;
     }
 
-    public static function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
+    public static function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile, $isPluginToUnload)
     {
-        //admin mode filter
-        $plugins = self::GetAdminPlugins();
-        $isPluginToUnload = self::SeIlPluginVieneTrovatoèDaRimuovere2($plugins, $pluginAttivoCorrente);
-
         //page filter
         if (!$isPluginToUnload)
         {
@@ -133,7 +114,7 @@ class FilterType
 
             if ($isPluginToUnload)
             {
-                $isPluginToUnload = self::FiltraPerGruppi_extracted2($is_mobile, $pluginAttivoCorrente, true);
+                $isPluginToUnload = MobileRelated::FiltraPerGruppi_extracted2($is_mobile, $pluginAttivoCorrente, true);
             }
         }
 
@@ -143,48 +124,21 @@ class FilterType
         }
     }
 
-    private static function FiltraPerGruppi_extracted2(string $is_mobile, $pluginAttivoCorrente): array
+    private static function SplitAndTrim(string $stringa, string $separator = null): array
     {
-        //desktop/mobile device disable filter
-        $disabilitaPerQuestoDevice = true;
-        $isPluginToUnload = true;
+        if ($separator === null)
+            $separator = ',';
 
-        global $wp_query;
-        $mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
-        if (is_singular() && is_object($wp_query->post))
-        {
-            $pageBehaviourMobileOrDesktop = PluginLoadFilter_extra::extracted($mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
-        }
-
-        //FiltraPerGruppi
-        $disabilitaPerQuestoDevice = FilterType::FiltraPerGruppi_extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
-
-        if (!$disabilitaPerQuestoDevice)
-                $isPluginToUnload1 = FilterType::FiltraPerGruppi_extracted($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
-
-        $isPluginToUnload = $isPluginToUnload1;
-
-        return $isPluginToUnload;
+        $stringSplit = self::StringSplit($stringa, $separator);
+        return array_map("trim", $stringSplit);
     }
 
-    private static function HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, &$pageFormatOptions): bool
+    private static function StringSplit(string $stringa, string $separator = null): array
     {
-        $isPluginToUnload = false;
-        $pageFormatOptions = false;
+        if ($separator === null)
+            $separator = ',';
 
-        if (is_singular())
-        {
-            if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include')
-            {
-                $pageFormatOptions = true;
-                $MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
-                if (false !== strpos($MobileOrDesktop, $pluginAttivoCorrente))
-                {
-                    $isPluginToUnload = false;
-                }
-            }
-        }
-        return $isPluginToUnload;
+        return explode($separator, $stringa);
     }
 
     //TODO: usare ovunque si riesce
@@ -198,36 +152,6 @@ class FilterType
     public static function SeIlPluginVieneTrovatoèDaRimuovere2(array $plugins, array $plugin): bool
     {
         $isPluginToUnload = !empty($plugins) && in_array($plugin, $plugins, true);
-        return $isPluginToUnload;
-    }
-
-    private static function FiltraPerGruppi_extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
-    {
-        $filtriPerGruppi = self::GetFilterGroups()['group'][$mobileOrDesktop];
-
-        if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default')
-        {
-            $plugins = $filtriPerGruppi['plugins'];
-            $disabilitaPerQuestoDevice = self::SeIlPluginVieneTrovatoèDaRimuovere($plugins, $pluginAttivoCorrente);
-        }
-        return $disabilitaPerQuestoDevice;
-    }
-
-    private static function FiltraPerGruppi_extracted($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions): array
-    {
-        if (!is_embed())
-        {
-            $isPluginToUnload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
-
-            if ($pageFormatOptions === false)
-            {
-                $post_format = WpPostTypes::CalculatePostFormat();
-
-                $plugins = FilterType::GetPluginsFilteredByPostFormat($post_format);
-                $isPluginToUnload = SeIlPluginVieneTrovatoèDaRimuovere2($plugins, $pluginAttivoCorrente);
-            }
-        }
-
         return $isPluginToUnload;
     }
 }
