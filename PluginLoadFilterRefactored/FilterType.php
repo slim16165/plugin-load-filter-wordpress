@@ -126,36 +126,33 @@ class FilterType
 
     public static function CheckIfPluginIsToLoad($pluginAttivoCorrente, string $is_mobile)
     {
-        $isPluginToUnload = false;
-
         //admin mode filter
         $plugins = self::GetAdminPlugins();
-        if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true))
-        {
-            $isPluginToUnload = true;
-        }
+        $isPluginToUnload = self::SeIlPluginVieneTrovatoèDaRimuovere2($plugins, $pluginAttivoCorrente);
 
         //page filter
         if (!$isPluginToUnload)
         {
             $plugins = self::GetPagePlugins();
+            $isPluginToUnload = self::SeIlPluginVieneTrovatoèDaRimuovere2($plugins, $pluginAttivoCorrente);
 
-            if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true))
+            if ($isPluginToUnload)
             {
-                $isPluginToUnload = true;
-                $isPluginToUnload = self::extracted2($is_mobile, $pluginAttivoCorrente, $isPluginToUnload);
+                $isPluginToUnload = self::extracted2($is_mobile, $pluginAttivoCorrente, true);
             }
         }
-        if (!$isPluginToUnload) //Sopra c'è lo stesso if...
+
+        if (!$isPluginToUnload)
         {
             return $pluginAttivoCorrente;
         }
     }
 
-    private static function extracted2(string $is_mobile, $pluginAttivoCorrente, &$isPluginToUnload): array
+    private static function extracted2(string $is_mobile, $pluginAttivoCorrente): array
     {
         //desktop/mobile device disable filter
         $disabilitaPerQuestoDevice = true;
+        $isPluginToUnload = true;
 
         global $wp_query;
         $mobileOrDesktop = ($is_mobile) ? 'mobile' : 'desktop';
@@ -165,6 +162,7 @@ class FilterType
         }
 
         $isPluginToUnload = self::FiltraPerGruppi($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $disabilitaPerQuestoDevice);
+
         return $isPluginToUnload;
     }
 
@@ -214,17 +212,16 @@ class FilterType
     }
 
     //TODO: usare ovunque si riesce
-    public static function SeIlPluginVieneTrovatoèDaRimuovere($plugins, $plugin): bool
+    public static function SeIlPluginVieneTrovatoèDaRimuovere(string $plugins, string $plugin): bool
     {
-        $isPluginToUnload = false;
+        $isPluginToUnload = !empty($plugins) && false !== strpos($plugins, $plugin);
+        return $isPluginToUnload;
+    }
 
-        if (!empty($plugins))
-        {
-            if (false !== strpos($plugins, $plugin))
-            {
-                $isPluginToUnload = true;
-            }
-        }
+    //TODO: usare ovunque si riesce
+    public static function SeIlPluginVieneTrovatoèDaRimuovere2(array $plugins, array $plugin): bool
+    {
+        $isPluginToUnload = !empty($plugins) && in_array($plugin, $plugins, true);
         return $isPluginToUnload;
     }
 
@@ -236,12 +233,7 @@ class FilterType
         {
             $plugins = $filtriPerGruppi['plugins'];
 
-            //TODO: usare seIlPluginVieneTrovatoèDaRimuovere()
-            if (!empty($plugins)
-                && false !== strpos($plugins, $pluginAttivoCorrente))
-            {
-                $disabilitaPerQuestoDevice = false;
-            }
+            $disabilitaPerQuestoDevice = self::SeIlPluginVieneTrovatoèDaRimuovere($plugins, $pluginAttivoCorrente);
         }
         return $disabilitaPerQuestoDevice;
     }

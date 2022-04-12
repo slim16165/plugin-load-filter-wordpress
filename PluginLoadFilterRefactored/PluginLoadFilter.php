@@ -45,6 +45,29 @@ class PluginLoadFilter
         add_filter('pre_option_active_plugins', [&$this, 'active_plugins']);
     }
 
+    public static function HandleAdminPages($toReturn_PluginAttiviFinale, $pluginAttivi)
+    {
+        if ($toReturn_PluginAttiviFinale == null && is_admin())
+        {
+            //$toReturn_PluginAttiviFinale = false;
+            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
+            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+        }
+        return $pluginAttivi;
+    }
+
+    public static function HandleSingleArticles2($toReturn_PluginAttiviFinale, $pluginAttivi)
+    {
+        //Gestione articoli singoli
+        if ($toReturn_PluginAttiviFinale == null && is_single())
+        {
+            $shorcodes = self::GetShortcodesFromContent();
+            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
+            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+        }
+        return $pluginAttivi;
+    }
+
     public static function HandleMobileRelated($toReturn_PluginAttiviFinale, $pluginAttivi): array
     {
         if ($toReturn_PluginAttiviFinale == null)
@@ -72,7 +95,7 @@ class PluginLoadFilter
 
     public static function HandleWordpressNotLoaded($toReturn)
     {
-#region Anticipa (rispetto a WordPress)
+        #region Anticipa (rispetto a WordPress)
         //Before plugins loaded, it does not use conditional branch such as is_home,
         // to set wp_query, wp in temporary query
         #endregion
@@ -126,48 +149,28 @@ class PluginLoadFilter
 
     //Plugin Load Filter Main (active plugins/modules filtering)
     //Only the plugins which are returned by this method will be loaded
-    public static function FilterActivePlugins()
+    public static function FilterActivePlugins(): array
     {
         $shouldReturn = false;
 
         //Metodo principale
         $pluginAttivi = self::GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
 
-        #region Cerca se ci sono impostazioni per URL - URL filter (max priority)
-
         //Admin mode exclude
-        if($toReturn_PluginAttiviFinale == null && is_admin())
-        {
-            //$toReturn_PluginAttiviFinale = false;
-            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
-            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
-        }
+        $pluginAttivi = self::HandleAdminPages($pluginAttiviFinale, $pluginAttivi);
 
-        ///////////////////////////////
+        /////////// mi fermo qui per il test //////////
 
-        $toReturn_PluginAttiviFinale = self::HandleSinglePage($pluginAttivi);
+        //region Cerca se ci sono impostazioni per URL - URL filter (max priority)
+        $pluginAttiviFinale = self::HandleSinglePage($pluginAttivi);
 
-        //Admin mode exclude
-        if($toReturn_PluginAttiviFinale == null && is_admin())
-        {
-            $toReturn_PluginAttiviFinale = false;
-        }
+        $pluginAttiviFinale = self::HandleWordpressNotLoaded($pluginAttiviFinale);
 
-        $toReturn_PluginAttiviFinale = self::HandleWordpressNotLoaded($toReturn_PluginAttiviFinale);
+        $pluginAttivi = self::HandleSingleArticles2($pluginAttiviFinale, $pluginAttivi);
 
-        //Gestione articoli singoli
-        if($toReturn_PluginAttiviFinale == null && is_single())
-        {
-            $shorcodes = self::GetShortcodesFromContent();
-            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
-            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
-        }
-        $pluginAttiviFinale = self::HandleMobileRelated($toReturn_PluginAttiviFinale, $pluginAttivi);
+        $pluginAttiviFinale = self::HandleMobileRelated($pluginAttiviFinale, $pluginAttivi);
 
-        if ($toReturn_PluginAttiviFinale != null)
-            return $toReturn_PluginAttiviFinale;
-
-        //TODO: c'è una doppia variabile $pluginAttiviFinale e $toReturn_PluginAttiviFinale
+        //TODO: c'è una doppia variabile $pluginAttiviFinale e $pluginAttiviFinale
         return $pluginAttiviFinale;
     }
 
