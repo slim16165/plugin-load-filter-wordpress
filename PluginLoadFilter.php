@@ -135,6 +135,12 @@ class PluginLoadFilter
 
         #region Cerca se ci sono impostazioni per URL - URL filter (max priority)
 
+        //Admin mode exclude
+        if($toReturn_PluginAttiviFinale == null && is_admin())
+        {
+            $toReturn_PluginAttiviFinale = false;
+        }
+
         $toReturn_PluginAttiviFinale = self::HandleSinglePage($pluginAttivi);
 
         //Admin mode exclude
@@ -157,6 +163,7 @@ class PluginLoadFilter
         if ($toReturn_PluginAttiviFinale != null)
             return $toReturn_PluginAttiviFinale;
 
+        //TODO: c'è una doppia variabile $pluginAttiviFinale e $toReturn_PluginAttiviFinale
         return $pluginAttiviFinale;
     }
 
