@@ -1,1 +1,5 @@
 /elementor-safe-mode.php
+/PluginLoadFilterRefactored/vendor/composer/
+/PluginLoadFilterRefactored/vendor/athari/
+/PluginLoadFilterRefactored/composer.lock
+/PluginLoadFilterRefactored/vendor/autoload.php
