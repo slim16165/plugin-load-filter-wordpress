@@ -13,7 +13,7 @@ class FilterType
     public const Groups = 'group';
     public const Urlkey = 'urlkey';
     public const Urlkeylist = 'urlkeylist';
-    private static array $filter = array();  //Plugin Load Filter Setting option data
+    private array $filter = array();  //Plugin Load Filter Setting option data
 
     public function __construct()
     {
@@ -22,19 +22,19 @@ class FilterType
 
     public function getFilterUrlKeyList(): mixed
     {
-        $plugins = $this->filter[self::Urlkeylist];
+        $plugins = $this->filter[FilterType::Urlkeylist];
         return $this->SplitAndTrim($plugins, PHP_EOL);
 
     }
 
     public function GetUrlKey(): mixed
     {
-        return $this->filter[self::Urlkey];
+        return $this->filter[FilterType::Urlkey];
     }
 
     public function GetPagePlugins(): array
     {
-        $plugins = $this->filter[self::Pagefilter]['plugins'];
+        $plugins = $this->filter[FilterType::Pagefilter]['plugins'];
         return $this->SplitAndTrim($plugins);
     }
 
@@ -49,7 +49,7 @@ class FilterType
 
     public function GetAdminPlugins(): array
     {
-        $plugins = $this->filter[self::Admin]['plugins'];
+        $plugins = $this->filter[FilterType::Admin]['plugins'];
         return $this->SplitAndTrim($plugins, ",");
     }
 
@@ -163,11 +163,31 @@ class FilterType
         return $unload;
     }
 
-    private function extract2($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $unload, $wp_query, mixed $filtriPerGruppi): bool
+    private function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente): bool
     {
+        $disabilitaPerQuestoDevice = $this->extracted1($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente);
+
+        if (!$disabilitaPerQuestoDevice)
+        {
+            if (!is_embed())
+            {
+                $unload = $this->HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
+
+                if ($pageFormatOptions === false) {
+                    $this->isUnload($pluginAttivoCorrente, $unload);
+                }
+            }
+        }
+        return $unload;
+    }
+
+    private function HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente, &$pageFormatOptions): bool
+    {
+        $unload = false;
         $pageFormatOptions = false;
 
-        if (is_singular()) {
+        if (is_singular())
+        {
             if (!empty($pageBehaviourMobileOrDesktop) && $pageBehaviourMobileOrDesktop['filter'] === 'include') {
                 $pageFormatOptions = true;
                 $MobileOrDesktop = $pageBehaviourMobileOrDesktop[$mobileOrDesktop];
@@ -176,45 +196,35 @@ class FilterType
                 }
             }
         }
-        if ($pageFormatOptions === false) {
-            $post_format = WpPostTypes::CalculatePostFormat($wp_query);
-
-            $plugins = $this->filter2->GetPluginsFilteredByPostFormat($post_format);
-
-            if (!empty($plugins))
-            {
-                if (in_array($pluginAttivoCorrente, $plugins, true)) {
-                    $unload = false;
-                }
-            }
-        }
         return $unload;
     }
 
-    private function FiltraPerGruppi($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, mixed $pluginAttivoCorrente, bool $disabilitaPerQuestoDevice): bool
+    private function isUnload($pluginAttivoCorrente, bool &$unload): void
     {
-        $filtriPerGruppi = $this->filter2->GetFilterGroups()['group'];
-        if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default') {
-            $var = $filtriPerGruppi[$mobileOrDesktop];
-            if (!empty($var['plugins'])
-                && false !== strpos($var['plugins'], $pluginAttivoCorrente)) {
+        $post_format = WpPostTypes::CalculatePostFormat();
+
+        $plugins = $this->filter2->GetPluginsFilteredByPostFormat($post_format);
+
+        if (!empty($plugins)) {
+            if (in_array($pluginAttivoCorrente, $plugins, true)) {
+                $unload = false;
+            }
+        }
+    }
+
+    private function extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
+    {
+        $filtriPerGruppi = $this->filter2->GetFilterGroups()['group'][$mobileOrDesktop];
+
+        if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default')
+        {
+            $plugins = $filtriPerGruppi['plugins'];
+
+            if (!empty($plugins)
+                && false !== strpos($plugins, $pluginAttivoCorrente)) {
                 $disabilitaPerQuestoDevice = false;
             }
         }
-        if ($disabilitaPerQuestoDevice) {
-        } else {
-            //oEmbed Content API
-            if (is_embed()) {
-                $var1 = $filtriPerGruppi['content-card'];
-                if (!empty($var1['plugins'])) {
-                    if (false !== strpos($var1['plugins'], $pluginAttivoCorrente)) {
-                        $unload = false;
-                    }
-                }
-            } else {
-                $unload = $this->extract2($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $filtriPerGruppi);
-            }
-        }
-        return $unload;
+        return $disabilitaPerQuestoDevice;
     }
 }

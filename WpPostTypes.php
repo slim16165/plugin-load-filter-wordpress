@@ -29,6 +29,7 @@ class WpPostTypes
      */
     public static function CalculatePostFormat($wp_query): string
     {
+        global $wp_query;
         $post_format = null;
         if (is_home() || is_front_page()) {
             $post_format = 'home';
