@@ -9,7 +9,7 @@ class WpPostTypes
     * Make taxonomies and posts available to 'plugin load filter'.
     * force register_taxonomy (category, post_tag, post_format)
      */
-    public static function getSinglePost_format($wp_query): mixed
+    public static function getSinglePost_format($wp_query)
     {
         //Post & Custom Post
         $post_format = get_post_type($wp_query->post);
@@ -24,10 +24,8 @@ class WpPostTypes
     }
 
     /** Check if the current request is the home page or a single page and so on
-     * @param $wp_query
-     * @return string
      */
-    public static function CalculatePostFormat($wp_query): string
+    public static function CalculatePostFormat(): string
     {
         global $wp_query;
         $post_format = null;

@@ -22,19 +22,19 @@ class FilterType
 
     public static function getFilterUrlKeyList(): mixed
     {
-        $plugins = $self::filter[FilterType::Urlkeylist];
+        $plugins = self::$filter[FilterType::Urlkeylist];
         return FilterType::SplitAndTrim($plugins, PHP_EOL);
 
     }
 
     public static function GetUrlKey(): mixed
     {
-        return $self::filter[FilterType::Urlkey];
+        return self::$filter[FilterType::Urlkey];
     }
 
     public static function GetPagePlugins(): array
     {
-        $plugins = $self::filter[FilterType::Pagefilter]['plugins'];
+        $plugins = self::$filter[FilterType::Pagefilter]['plugins'];
         return FilterType::SplitAndTrim($plugins);
     }
 
@@ -43,24 +43,24 @@ class FilterType
         if(empty($post_format))
             return [];
 
-        $plugins = $self::filter[$post_format]['plugins'];
+        $plugins = self::$filter[$post_format]['plugins'];
         return FilterType::SplitAndTrim($plugins);
     }
 
     public static function GetAdminPlugins(): array
     {
-        $plugins = $self::filter[FilterType::Admin]['plugins'];
+        $plugins = self::$filter[FilterType::Admin]['plugins'];
         return FilterType::SplitAndTrim($plugins, ",");
     }
 
     public static function GetPlfurlkeyPlugins($urlkey): mixed
     {
-        return $self::filter['plfurlkey'][$urlkey]['plugins'];
+        return self::$filter['plfurlkey'][$urlkey]['plugins'];
     }
 
     public static function GetUrlsKeyList(array $keys_UrlOrTipology): array
     {
-        $plugins = $self::filter->getFilterUrlKeyList();
+        $plugins = self::getFilterUrlKeyList();
 
         $ar_key = (!empty($filter_urls)) ? array_filter($plugins) : array();
 
@@ -92,13 +92,13 @@ class FilterType
         $plugins1 = array();
         //Dai la priorità all'URL generico
 
-        $plugins = $self::filter->GetUrlKey()['amp'];
+        $plugins = self::GetUrlKey()['amp'];
         if (!empty($plugins))
         {
             $plugins1['amp'] = $plugins;
         }
 
-        $plugins1 = $self::filter->GetUrlsKeyList($plugins1);
+        $plugins1 = self::GetUrlsKeyList($plugins1);
 
         $plugins1['wp-json'] = 'wp-json';
         $plugins1['heartbeat'] = 'admin-ajax';
@@ -127,14 +127,14 @@ class FilterType
         $unload = false;
 
         //admin mode filter
-        $plugins = $self::filter2->GetAdminPlugins();
+        $plugins = self::GetAdminPlugins();
         if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
             $unload = true;
         }
 
         //page filter
         if (!$unload) {
-            $plugins = $self::filter2->GetPagePlugins();
+            $plugins = self::GetPagePlugins();
 
             if (!empty($plugins) && in_array($pluginAttivoCorrente, $plugins, true)) {
                 $unload = true;
@@ -193,7 +193,7 @@ class FilterType
     {
         $post_format = WpPostTypes::CalculatePostFormat();
 
-        $plugins = $self::filter2->GetPluginsFilteredByPostFormat($post_format);
+        $plugins = self::GetPluginsFilteredByPostFormat($post_format);
 
         if (!empty($plugins)) {
             if (in_array($pluginAttivoCorrente, $plugins, true)) {
@@ -204,7 +204,7 @@ class FilterType
 
     private static function extracted1($pageBehaviourMobileOrDesktop, string $mobileOrDesktop, $pluginAttivoCorrente): bool
     {
-        $filtriPerGruppi = $self::filter2->GetFilterGroups()['group'][$mobileOrDesktop];
+        $filtriPerGruppi = self::GetFilterGroups()['group'][$mobileOrDesktop];
 
         if (empty($pageBehaviourMobileOrDesktop) || $pageBehaviourMobileOrDesktop['filter'] === 'default')
         {
@@ -222,10 +222,10 @@ class FilterType
     {
         if (!$disabilitaPerQuestoDevice) {
             if (!is_embed()) {
-                $unload = $instance->HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
+                $unload = self::HandleSingleMobileOrDesktop($pageBehaviourMobileOrDesktop, $mobileOrDesktop, $pluginAttivoCorrente, $pageFormatOptions);
 
                 if ($pageFormatOptions === false) {
-                    FilterType::isUnload($pluginAttivoCorrente, $unload);
+                    self::isUnload($pluginAttivoCorrente, $unload);
                 }
             }
         }
