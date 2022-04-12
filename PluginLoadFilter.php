@@ -11,7 +11,8 @@ declare(strict_types=1)
     */
 defined('ABSPATH') || exit;
 
-if(!is_admin()) {
+if (!is_admin())
+{
     return;
 }
 
@@ -48,7 +49,8 @@ class PluginLoadFilter
     public function active_plugins()
     {
         //Se si sta installando wordpress non fare nulla
-        if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING')) {
+        if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING'))
+        {
             return false;
         }
 
@@ -67,12 +69,14 @@ class PluginLoadFilter
 
         #region Cerca se ci sono impostazioni per URL - URL filter (max priority)
 
+        $toReturn = null;
+
         //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
         $cacheKey = md5("plf_url{$REQUEST_URI}");
         $active_plugins = $this->cache[$cacheKey]['active_plugins'];
         if (!empty($active_plugins))
         {
-            return $active_plugins;
+            $toReturn = $active_plugins;
         }
 
         //Uso come key_UrlOrTipology per l'accesso alla cache l'url
@@ -80,57 +84,69 @@ class PluginLoadFilter
         //Se trova un match e lo restituisce in output
         $urlkey = $this->CercaUnMatchConUrlPagina();
 
-        if ($urlkey !== false && is_string($urlkey))
-            return $this->extracted1($pluginAttivi, $urlkey, $cacheKey);
-
-        #endregion
-
-        #region Boh.. però non mi serve
-
-        //Admin mode exclude
-        if (!$urlkey && is_admin())
-            return false;
-
-        #endregion
-
-        #region Anticipa (rispetto a Wordpress)
-        //Before plugins loaded, it does not use conditional branch such as is_home,
-        // to set wp_query, wp in temporary query
-        if (empty($GLOBALS['wp_the_query']))
+        if($toReturn == null)
         {
-            if ($this->filter2->GesticiRewriteRule() === false)
-                return false;
+            if ($urlkey !== false && is_string($urlkey))
+            {
+                $toReturn = $this->extracted1($pluginAttivi, $urlkey, $cacheKey);
+            }
 
-            $this->DoSomeWpQuery();
+            #endregion
         }
-
-        #endregion
-
-        $shorcodes = $this->GetShortcodesFromContent();
-
-        //Gestione articoli singoli
-        if(is_single())
+        if($toReturn == null)
         {
-            $pluginDaRimuovereDiDefault = $this->getPluginDaRimuovereDiDefault();
-            $pluginAttivi = $this->RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+            //Admin mode exclude
+            if (!$urlkey && is_admin())
+                $toReturn = false;
         }
-
-        #region
-
-        $pluginAttiviFinale = array();
-
-        //Equal treatment for when the wp_is_mobile is not yet available（wp-include/vars.php wp_is_mobile)
-        $is_mobile = HelperClass::IsMobile();
-        foreach ($pluginAttivi as $pluginAttivoCorrente)
+        if($toReturn == null)
         {
-            $result = $this->filter2->CheckIfPluginIsToLoad($pluginAttivoCorrente, $is_mobile, $this);
+            #region Anticipa (rispetto a Wordpress)
+            //Before plugins loaded, it does not use conditional branch such as is_home,
+            // to set wp_query, wp in temporary query
+            if (empty($GLOBALS['wp_the_query']))
+            {
+                if ($this->filter2->GesticiRewriteRule() === false)
+                    $toReturn = false;
 
-            if (!is_null($result)) {
-                $pluginAttiviFinale[] = $result;
+                $this->DoSomeWpQuery();
+            }
+            #endregion
+        }
+        if($toReturn == null)
+        {
+            $shorcodes = $this->GetShortcodesFromContent();
+
+            //Gestione articoli singoli
+            if (is_single())
+            {
+                $pluginDaRimuovereDiDefault = $this->getPluginDaRimuovereDiDefault();
+                $pluginAttivi = $this->RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
             }
         }
+        if($toReturn == null)
+        {
+            #region
 
-        #endregion
+            $pluginAttiviFinale = array();
+
+            //Equal treatment for when the wp_is_mobile is not yet available（wp-include/vars.php wp_is_mobile)
+            $is_mobile = HelperClass::IsMobile();
+            foreach ($pluginAttivi as $pluginAttivoCorrente)
+            {
+                $result = $this->filter2->CheckIfPluginIsToLoad($pluginAttivoCorrente, $is_mobile, $this);
+
+                if (!is_null($result))
+                {
+                    $pluginAttiviFinale[] = $result;
+                }
+            }
+
+            #endregion
+        }
+
+        if ($toReturn != null)
+            return $toReturn;
 
         return $pluginAttiviFinale;
     }
@@ -181,7 +197,7 @@ class PluginLoadFilter
         return maybe_unserialize($active_plugins);
     }
 
-    private  function CercaUnMatchConUrlPagina() : mixed
+    private function CercaUnMatchConUrlPagina(): mixed
     {
         $plugins = $this->filter2->getKeys_UrlOrTipology($this);
 
@@ -201,8 +217,7 @@ class PluginLoadFilter
             {
                 $skip_actions = true;
             }
-        }
-        else if ($currentUrl === 'admin-ajax')
+        } else if ($currentUrl === 'admin-ajax')
         {
             //exclude action : plugin_load_filter
             if (!(empty($action) || $action != 'revious-microdata'))
@@ -214,7 +229,7 @@ class PluginLoadFilter
         return $skip_actions;
     }
 
-    private static function GetShortcodesFromContent() : array
+    private static function GetShortcodesFromContent(): array
     {
         global $wp_query;
         $post = $wp_query->posts[0];
@@ -225,7 +240,7 @@ class PluginLoadFilter
         //get shortcode regex shortcode_regex wordpress function - get_shortcode_regex();
         $shortcode_regex = '%\[([^[/]+)(\s[^[/]+)?\]%imU'; //il nome del tag va nel 1° capturing group
 
-        if (preg_match_all( $shortcode_regex, $post->post_content, $matches ) )
+        if (preg_match_all($shortcode_regex, $post->post_content, $matches))
         {
             $tagFound = array_unique($matches[1]); //il nome del tag va nel 1° capturing group
         }
@@ -246,11 +261,13 @@ class PluginLoadFilter
 
             if (!empty($plugins))
             {
-                if (false !== strpos($plugins, $pluginDaRimuovere)) {
+                if (false !== strpos($plugins, $pluginDaRimuovere))
+                {
                     $unload = true;
                 }
             }
-            if (!$unload) {
+            if (!$unload)
+            {
                 $pluginAttiviFinale[] = $plugin;
             }
         }
@@ -288,14 +305,15 @@ class PluginLoadFilter
 
     private static function RimuoviPlugin(array $pluginDaRimuovereDiDefault, $pluginAttivi): mixed
     {
-        foreach ($pluginDaRimuovereDiDefault as $pluginCorrente) {
+        foreach ($pluginDaRimuovereDiDefault as $pluginCorrente)
+        {
             $i = array_search($pluginCorrente, $pluginAttivi, true);
             unset($pluginAttivi[$i]);
         }
         return $pluginAttivi;
     }
 
-    private static function CercaUrl(mixed $kwd) : mixed
+    private static function CercaUrl(mixed $kwd): mixed
     {
         return preg_match("#([/&.?=])$kwd([/&.?=]|$)#u", $_SERVER['REQUEST_URI']);
     }
@@ -305,7 +323,8 @@ class PluginLoadFilter
         $urlkey = null;
 
         foreach ($keys_UrlOrTipology as $key_UrlOrTipology => $kwd)
-            if ($this->CercaUrl($kwd)) {
+            if ($this->CercaUrl($kwd))
+            {
                 if ($this->ShouldSkipAnyAction($key_UrlOrTipology))
                     continue;
                 else
