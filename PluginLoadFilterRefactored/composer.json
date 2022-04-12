@@ -10,6 +10,7 @@
     }
   ],
   "require": {
-    "athari/yalinqo": "^2.0"
+    "athari/yalinqo": "^2.0",
+    "johnpbloch/wordpress":  "dev-master"
   }
 }

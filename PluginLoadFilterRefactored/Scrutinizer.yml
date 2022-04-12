@@ -1,0 +1,10 @@
+build:
+  nodes:
+    analysis:
+      dependencies:
+        before:
+          - composer require --dev johnpbloch/wordpress
+
+filter:
+  dependency_paths:
+    - vendor/wordpress/
