@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1)
+require_once 'vendor/autoload.php';
+use \YaLinqo\Enumerable as Linq;
+
     /*
       Plugin Name: plugin load filter [plf-filter]
       Description: Dynamically activated only plugins that you have selected in each page. [Note] plf-filter has been automatically installed / deleted by Activate / Deactivate of "load filter plugin".
@@ -45,83 +48,6 @@ class PluginLoadFilter
         add_filter('pre_option_active_plugins', [&$this, 'active_plugins']);
     }
 
-    public static function HandleAdminPages($toReturn_PluginAttiviFinale, $pluginAttivi)
-    {
-        if ($toReturn_PluginAttiviFinale == null && is_admin())
-        {
-            //$toReturn_PluginAttiviFinale = false;
-            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
-            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
-        }
-        return $pluginAttivi;
-    }
-
-    public static function HandleSingleArticles2($toReturn_PluginAttiviFinale, $pluginAttivi)
-    {
-        //Gestione articoli singoli
-        if ($toReturn_PluginAttiviFinale == null && is_single())
-        {
-            $shorcodes = self::GetShortcodesFromContent();
-            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
-            $pluginAttivi = self::RimuoviPlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
-        }
-        return $pluginAttivi;
-    }
-
-    public static function HandleWordpressNotLoaded($toReturn)
-    {
-        #region Anticipa (rispetto a WordPress)
-        //Before plugins loaded, it does not use conditional branch such as is_home,
-        // to set wp_query, wp in temporary query
-        #endregion
-        if ($toReturn == null && empty($GLOBALS['wp_the_query']))
-        {
-            if (FilterType::GesticiRewriteRule() === false)
-                $toReturn = false;
-
-            HelperClass::DoSomeWpQuery();
-        }
-        return $toReturn;
-    }
-
-    public static function HandleSinglePage($pluginAttivi): array
-    {
-        $REQUEST_URI = $_SERVER['REQUEST_URI'];
-        $toReturn_PluginAttiviFinale = null;
-
-        //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
-        $cacheKey = md5("plf_url{$REQUEST_URI}");
-        $toReturn_PluginAttiviFinale = self::$cache[$cacheKey]['active_plugins'];
-        if (!empty($active_plugins))
-        {
-            return $toReturn_PluginAttiviFinale;
-        }
-
-        //Uso come key_UrlOrTipology per l'accesso alla cache l'url
-        //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
-        //Se trova un match e lo restituisce in output
-        $urlkey = UrlRelated::CercaUnMatchConUrlPagina();
-
-        if ($urlkey !== false && is_string($urlkey))
-        {
-            $toReturn_PluginAttiviFinale = UrlRelated::CheckIfPluginToUnload($pluginAttivi, $urlkey);
-            self::$cache[$cacheKey]['active_plugins'] = $toReturn_PluginAttiviFinale;
-        }
-
-        return $toReturn_PluginAttiviFinale;
-    }
-
-    public function active_plugins()
-    {
-        //Se si sta installando wordpress non fare nulla
-        if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING'))
-        {
-            return false;
-        }
-
-        return $this->FilterActivePlugins();
-    }
-
     //Plugin Load Filter Main (active plugins/modules filtering)
     //Only the plugins which are returned by this method will be loaded
     public static function FilterActivePlugins(): array
@@ -130,9 +56,10 @@ class PluginLoadFilter
 
         //Metodo principale
         $pluginAttivi = self::GetActivePluginList($shouldReturn); //if($shouldReturn) return $pluginAttivi_string;
+        $pluginAttiviFinale = $pluginAttivi;
 
         //Admin mode exclude
-        $pluginAttivi = self::HandleAdminPages($pluginAttiviFinale, $pluginAttivi);
+        $pluginAttiviFinale = self::HandleAdminPages($pluginAttiviFinale, $pluginAttivi);
 
         /////////// mi fermo qui per il test //////////
 
@@ -195,6 +122,85 @@ class PluginLoadFilter
         return maybe_unserialize($active_plugins);
     }
 
+    public static function HandleAdminPages($toReturn_PluginAttiviFinale, $pluginAttivi)
+    {
+        if ($toReturn_PluginAttiviFinale == null && is_admin())
+        {
+            //$toReturn_PluginAttiviFinale = false;
+            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
+            $pluginAttivi = self::RemovePlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+        }
+        return $pluginAttivi;
+    }
+
+    public static function HandleSingleArticles2($toReturn_PluginAttiviFinale, $pluginAttivi)
+    {
+        //Gestione articoli singoli
+        if ($toReturn_PluginAttiviFinale == null && is_single())
+        {
+            $shorcodes = self::GetShortcodesFromContent();
+            $pluginDaRimuovereDiDefault = self::getPluginDaRimuovereDiDefault();
+            $pluginAttivi = self::RemovePlugin($pluginDaRimuovereDiDefault, $pluginAttivi);
+        }
+        return $pluginAttivi;
+    }
+
+    public static function HandleWordpressNotLoaded($toReturn)
+    {
+        #region Anticipa (rispetto a WordPress)
+        //Before plugins loaded, it does not use conditional branch such as is_home,
+        // to set wp_query, wp in temporary query
+        #endregion
+        if ($toReturn == null && empty($GLOBALS['wp_the_query']))
+        {
+            if (FilterType::GesticiRewriteRule() === false)
+                $toReturn = false;
+
+            HelperClass::DoSomeWpQuery();
+        }
+        return $toReturn;
+    }
+
+    public static function HandleSinglePage($pluginAttivi): array
+    {
+        $REQUEST_URI = $_SERVER['REQUEST_URI'];
+        $toReturn_PluginAttiviFinale = null;
+
+        //Se presente in cache la lista dei plugin da mantenere attivi per questa pagina, esci (Se trova in cache quell'url e quella opzione lo restituisce)
+        $cacheKey = md5("plf_url{$REQUEST_URI}");
+        $toReturn_PluginAttiviFinale = self::$cache[$cacheKey]['active_plugins'];
+        if (!empty($active_plugins))
+        {
+            return $toReturn_PluginAttiviFinale;
+        }
+
+        //Uso come key_UrlOrTipology per l'accesso alla cache l'url
+        //$key_UrlOrTipology può valere 'heartbeat', 'admin-ajax' o un url immagino
+        //Se trova un match e lo restituisce in output
+        $urlkey = UrlRelated::CercaUnMatchConUrlPagina();
+
+        if ($urlkey !== false && is_string($urlkey))
+        {
+            $toReturn_PluginAttiviFinale = UrlRelated::CheckIfPluginToUnload($pluginAttivi, $urlkey);
+            self::$cache[$cacheKey]['active_plugins'] = $toReturn_PluginAttiviFinale;
+        }
+
+        return $toReturn_PluginAttiviFinale;
+    }
+
+    public function active_plugins()
+    {
+        //Se si sta installando wordpress non fare nulla
+        if (defined('WP_SETUP_CONFIG') || defined('WP_INSTALLING'))
+        {
+            return false;
+        }
+
+        return $this->FilterActivePlugins();
+    }
+
+
+
     private static function GetShortcodesFromContent(): array
     {
         global $wp_query;
@@ -227,14 +233,13 @@ class PluginLoadFilter
         return $pluginDaRimuovereDiDefault;
     }
 
-    private static function RimuoviPlugin(array $pluginDaRimuovereDiDefault, $pluginAttivi): mixed
+    private static function RemovePlugin(array $pluginsToDisable, array $activePlugins): array
     {
-        foreach ($pluginDaRimuovereDiDefault as $pluginCorrente)
-        {
-            $i = array_search($pluginCorrente, $pluginAttivi, true);
-            unset($pluginAttivi[$i]);
-        }
-        return $pluginAttivi;
+        return Linq::from($activePlugins)->except($pluginsToDisable)->toArray();
     }
 
+    private static function RemoveAllPluginBut(array $pluginsNotToDisable, array $activePlugins): array
+    {
+        return Linq::from($activePlugins)->intersect($pluginsNotToDisable)->toArray();
+    }
 }
